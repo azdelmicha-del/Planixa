@@ -1,16 +1,15 @@
 {
-  "name": "effii_finanza_ecommerce",
-  "version": "1.0.1",
+  "name": "el-profe-2-0",
+  "version": "2.0.0",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "migrate": "node migrate.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "Finanzas Pro - Gestión financiera para e-commerce (Migrado a MongoDB)",
+  "description": "El Profe 2.0 - Planificación docente MINERD con IA",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
@@ -19,7 +18,8 @@
     "express": "^4.22.1",
     "express-rate-limit": "^8.3.2",
     "mongoose": "^8.24.0",
-    "multer": "^2.1.1"
+    "multer": "^2.1.1",
+    "pdfkit": "^0.19.1"
   },
   "devDependencies": {
     "better-sqlite3": "^12.10.0"
