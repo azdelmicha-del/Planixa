@@ -225,14 +225,14 @@ app.post('/chat', async (req, res) => {
     if (openaiKey && !openaiKey.includes('your_')) {
         try {
             console.log('📤 Intentando OpenAI con clave:', openaiKey.slice(0, 20) + '...');
-            const apiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+            const apiRes = await fetch('https://aiapiv2.pekpik.com/v1/chat/completions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${openaiKey}`
                 },
                 body: JSON.stringify({
-                    model: 'gpt-4o-mini',
+                    model: 'openai/gpt-chat-latest',
                     max_tokens: 600,
                     temperature: 0.4,
                     messages: [
