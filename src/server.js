@@ -165,10 +165,10 @@ app.post('/chat', authenticateToken, async (req, res) => {
 
     if (openaiKey && !openaiKey.includes('your_')) {
         try {
-            const apiRes = await fetch('https://aiapiv2.pekpik.com/v1/chat/completions', {
+            const apiRes = await fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
-                body: JSON.stringify({ model: 'openai/gpt-chat-latest', max_tokens: 2000, temperature: 0.3, messages })
+                body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 2000, temperature: 0.3, messages })
             });
             if (apiRes.ok) {
                 const data = await apiRes.json();
