@@ -280,10 +280,26 @@ async function loadConversation(id) {
   const msgs = res.messages || [];
   if (msgs.length === 0) {
     container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);">Conversación vacía</div>';
+    const docEditor = $('documentEditor');
+    if (docEditor) docEditor.innerHTML = '<h1 style="color:#ccc; font-weight:normal; text-align:center; margin-top:20%;">Hoja en blanco</h1><p style="color:#ccc; text-align:center;">Pide al asistente que genere tu planificación y aparecerá aquí.</p>';
   } else {
+    let lastAssistantMsg = null;
     msgs.forEach((m, i) => {
-      container.appendChild(createMessageElement(m.role, m.content, i));
+      if (m.role === 'assistant') lastAssistantMsg = m.content;
+      let displayMsg = m.content;
+      if (m.role === 'assistant' && displayMsg.length > 250) {
+        displayMsg = '✅ ¡Listo profe! He generado tu planificación. Puedes verla y editarla en el documento central a tu izquierda.';
+      }
+      container.appendChild(createMessageElement(m.role, displayMsg, i));
     });
+    const docEditor = $('documentEditor');
+    if (docEditor) {
+      if (lastAssistantMsg && lastAssistantMsg.length > 250) {
+        docEditor.innerHTML = '<div style="white-space: pre-wrap; font-family: inherit;">' + escHtml(lastAssistantMsg) + '</div>';
+      } else {
+        docEditor.innerHTML = '<h1 style="color:#ccc; font-weight:normal; text-align:center; margin-top:20%;">Hoja en blanco</h1><p style="color:#ccc; text-align:center;">Pide al asistente que genere tu planificación y aparecerá aquí.</p>';
+      }
+    }
   }
   container.scrollTop = container.scrollHeight;
   loadConversations();
@@ -293,6 +309,8 @@ async function loadConversation(id) {
 function newConversation() {
   currentConversationId = null;
   $('chatTitle').textContent = 'Nueva planificación';
+  const docEditor = $('documentEditor');
+  if (docEditor) docEditor.innerHTML = '<h1 style="color:#ccc; font-weight:normal; text-align:center; margin-top:20%;">Hoja en blanco</h1><p style="color:#ccc; text-align:center;">Pide al asistente que genere tu planificación y aparecerá aquí.</p>';
   $('pdfBtn').style.display = 'none';
   $('pdfEnhancedBtn').style.display = 'none';
   $('docxBtn').style.display = 'none';
@@ -448,7 +466,17 @@ async function sendMessage() {
     typingEl.remove();
 
     const reply = res.response || 'Lo siento, no pude procesar tu solicitud.';
-    container.appendChild(createMessageElement('assistant', reply));
+    
+    let displayReply = reply;
+    if (reply.length > 250) {
+      const docEditor = $('documentEditor');
+      if (docEditor) docEditor.innerHTML = '<div style="white-space: pre-wrap; font-family: inherit;">' + escHtml(reply) + '</div>';
+      displayReply = '✅ ¡Listo profe! He generado tu planificación. Puedes verla y editarla en el documento central a tu izquierda.';
+      const chatTab = document.querySelector('.nav-tab[data-tab="chat"]');
+      if (chatTab && !chatTab.classList.contains('active')) chatTab.click();
+    }
+
+    container.appendChild(createMessageElement('assistant', displayReply));
     container.scrollTop = container.scrollHeight;
 
     if (!currentConversationId) {
