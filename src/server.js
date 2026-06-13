@@ -80,7 +80,7 @@ require('./routes/calendar')(app);
 async function start() {
     await connectMongo();
     app.listen(PORT, () => {
-        console.log(`El Profe 2.0 corriendo en puerto ${PORT}`);
+        console.log(`Planixa corriendo en puerto ${PORT}`);
         const oKey = process.env.OPENAI_API_KEY;
         const gKey = process.env.GOOGLE_AI_KEY;
         console.log('OPENAI_API_KEY :', oKey && !oKey.includes('your_') ? 'configurada' : 'no configurada');

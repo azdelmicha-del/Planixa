@@ -17,7 +17,7 @@ module.exports = function (app) {
             const conv = await getDb().collection('conversations').findOne({ _id: new mongoose.Types.ObjectId(req.params.id), userId: req.userId });
             if (!conv) return res.status(404).json({ error: 'No encontrada' });
             const user = await getDb().collection('users').findOne({ _id: new mongoose.Types.ObjectId(req.userId) });
-            let txt = `=== El Profe 2.0 - Planificación Docente MINERD ===\n`;
+            let txt = `=== Planixa - Planificación Docente MINERD ===\n`;
             txt += `Título: ${conv.title || 'Sin título'}\n`;
             txt += `Docente: ${user?.name || 'Desconocido'} (${user?.phone || ''})\n`;
             txt += `Generado: ${new Date().toLocaleDateString('es-DO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`;
@@ -109,7 +109,7 @@ module.exports = function (app) {
             }
 
             doc.moveDown(2);
-            doc.fontSize(8).fillColor('#999').text('Documento generado por El Profe 2.0 - Sistema de Planificación Docente MINERD', { align: 'center' });
+            doc.fontSize(8).fillColor('#999').text('Documento generado por Planixa - Sistema de Planificación Docente MINERD', { align: 'center' });
             doc.text('Los datos contenidos en este documento son responsabilidad del docente.', { align: 'center' });
 
             doc.end();
@@ -142,11 +142,11 @@ module.exports = function (app) {
 
             doc.on('pageAdded', () => {
                 pageNum++;
-                doc.fontSize(7).fillColor('#999').text(`El Profe 2.0 - ${conv.title || 'Planificación'}`, leftM, 10);
+                doc.fontSize(7).fillColor('#999').text(`Planixa - ${conv.title || 'Planificación'}`, leftM, 10);
                 doc.text(`Pág. ${pageNum}`, pageW - leftM - 50, 10, { align: 'right' });
                 doc.moveTo(leftM, 20).lineTo(pageW - leftM, 20).stroke('#ddd');
             });
-            doc.fontSize(7).fillColor('#999').text(`El Profe 2.0 - ${conv.title || 'Planificación'}`, leftM, 10);
+            doc.fontSize(7).fillColor('#999').text(`Planixa - ${conv.title || 'Planificación'}`, leftM, 10);
             doc.text(`Pág. ${pageNum}`, pageW - leftM - 50, 10, { align: 'right' });
             doc.moveTo(leftM, 20).lineTo(pageW - leftM, 20).stroke('#ddd');
 
@@ -154,7 +154,7 @@ module.exports = function (app) {
 
             doc.rect(leftM - 10, doc.y, pageW - leftM * 2 + 20, 80).fillAndStroke('#1a56db', '#1a56db');
             doc.fillColor('#fff').fontSize(18).font('Helvetica-Bold').text('Ministerio de Educación RD', leftM, doc.y + 12, { align: 'center', width: pageW - leftM * 2 });
-            doc.fontSize(13).text('Planificación Docente - El Profe 2.0', leftM, doc.y + 38, { align: 'center', width: pageW - leftM * 2 });
+            doc.fontSize(13).text('Planificación Docente - Planixa', leftM, doc.y + 38, { align: 'center', width: pageW - leftM * 2 });
             doc.fillColor('#000');
             doc.y += 95;
 
@@ -186,7 +186,7 @@ module.exports = function (app) {
 
             doc.y = 740;
             doc.moveTo(leftM, doc.y).lineTo(pageW - leftM, doc.y).stroke('#ccc');
-            doc.fontSize(7).fillColor('#999').text('Documento generado por El Profe 2.0 - Sistema de Planificación Docente MINERD', leftM, doc.y + 4, { align: 'center', width: pageW - leftM * 2 });
+            doc.fontSize(7).fillColor('#999').text('Documento generado por Planixa - Sistema de Planificación Docente MINERD', leftM, doc.y + 4, { align: 'center', width: pageW - leftM * 2 });
 
             doc.end();
         } catch (err) {
@@ -239,7 +239,7 @@ module.exports = function (app) {
             }
 
             sections.push(
-                new Paragraph({ spacing: { before: 400 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Documento generado por El Profe 2.0 - Sistema de Planificación Docente MINERD', size: 16, color: '999999' })] }),
+                new Paragraph({ spacing: { before: 400 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Documento generado por Planixa - Sistema de Planificación Docente MINERD', size: 16, color: '999999' })] }),
                 new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Los datos contenidos en este documento son responsabilidad del docente.', size: 16, color: '999999' })] })
             );
 

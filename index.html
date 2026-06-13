@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>El Profe 2.0 - Planificación Docente MINERD</title>
+<title>Planixa - Planificación Docente MINERD</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="El Profe 2.0">
+<meta name="apple-mobile-web-app-title" content="Planixa">
 <link rel="stylesheet" href="/public/css/style.css?v=6">
 </head>
 <body>
 
 <div id="authOverlay">
   <div class="auth-box">
-    <h1>📋 El Profe 2.0</h1>
+    <h1>📋 Planixa</h1>
     <p>Tu asistente de planificación docente<br>Ministerio de Educación RD</p>
     <div class="auth-tabs">
       <button class="auth-tab active" data-tab="login">Iniciar sesión</button>
@@ -72,7 +72,7 @@
   <!-- Col 2: Sidebar (Historial y Perfil) -->
   <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <h2>📋 El Profe 2.0</h2>
+      <h2>📋 Planixa</h2>
       <div style="display:flex;gap:6px;">
         <button id="darkToggle" title="Modo oscuro" style="background:none;border:none;font-size:16px;cursor:pointer;line-height:1;">🌙</button>
         <button id="closeSidebar" title="Cerrar">&times;</button>
@@ -105,7 +105,7 @@
       <div class="app-header">
         <div class="header-row">
           <button class="menu-btn" id="menuBtn">&#9776;</button>
-          <span class="chat-title" id="chatTitle">El Profe 2.0</span>
+          <span class="chat-title" id="chatTitle">Planixa</span>
           <div class="header-actions" id="headerActions">
             <button class="pdf-btn" id="pdfEnhancedBtn" style="background:#7c3aed;display:none;">&#128196; PDF+</button>
             <button class="pdf-btn" id="pdfBtn" style="background:var(--accent);display:none;">&#128196; PDF</button>
@@ -149,7 +149,7 @@
       <div class="ai-chat-header">Asistente IA</div>
       <div class="messages-container" id="messagesContainer">
         <div class="welcome-msg" id="welcomeMsg">
-          <h3>¡Bienvenido a El Profe 2.0!</h3>
+          <h3>¡Bienvenido a Planixa!</h3>
           <p>Soy tu asistente de planificación docente.<br>¿En qué puedo ayudarte hoy?</p>
           <div class="suggestions">
             <button class="suggestion-btn" data-msg="Necesito una planificación de Matemática para 5to de primaria, tema: fracciones">Matem. 5to</button>
@@ -321,7 +321,7 @@
 
 <div id="pinOverlay" style="display:none;position:fixed;inset:0;z-index:10000;background:#0f172a;padding:20px;flex-direction:column;align-items:center;justify-content:center;">
   <div style="background:var(--card);border-radius:var(--radius);padding:40px;max-width:340px;width:100%;text-align:center;">
-    <h2 style="font-size:20px;margin-bottom:8px;">🔒 El Profe 2.0</h2>
+    <h2 style="font-size:20px;margin-bottom:8px;">🔒 Planixa</h2>
     <p style="font-size:13px;color:var(--text-light);margin-bottom:20px;">Ingresa tu PIN para desbloquear</p>
     <input id="pinInput" type="password" maxlength="4" inputmode="numeric" placeholder="****" style="width:100%;padding:14px;border:2px solid var(--border);border-radius:8px;font-size:24px;text-align:center;letter-spacing:8px;background:var(--bg);color:var(--text);outline:none;">
     <div id="pinError" style="color:#dc2626;font-size:13px;margin-top:8px;display:none;">PIN incorrecto</div>
@@ -332,7 +332,7 @@
 <div id="onboardingOverlay" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.7);backdrop-filter:blur(5px);padding:30px;flex-direction:column;align-items:center;justify-content:center;">
   <div style="background:var(--card);border-radius:var(--radius);max-width:440px;width:100%;padding:32px;text-align:center;">
     <div id="onbStep" style="font-size:32px;margin-bottom:12px;">👋</div>
-    <h2 id="onbTitle" style="font-size:20px;margin-bottom:8px;">¡Bienvenido a El Profe 2.0!</h2>
+    <h2 id="onbTitle" style="font-size:20px;margin-bottom:8px;">¡Bienvenido a Planixa!</h2>
     <p id="onbDesc" style="font-size:14px;color:var(--text-light);line-height:1.6;margin-bottom:20px;">
       Tu asistente personal de planificación docente del MINERD. Crea unidades, planificaciones diarias, semanales, rúbricas y exámenes con IA.
     </p>
@@ -430,7 +430,7 @@
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
       <div>
         <h1 style="font-size:22px;">&#128272; Administración</h1>
-        <p style="font-size:13px;color:var(--text-light);">Usuarios registrados en El Profe 2.0</p>
+        <p style="font-size:13px;color:var(--text-light);">Usuarios registrados en Planixa</p>
       </div>
       <button onclick="closeAdminPanel()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;">&larr; Volver al chat</button>
     </div>

@@ -517,7 +517,7 @@ async function sendMessage() {
 function createMessageElement(role, content, msgIndex) {
   const div = document.createElement('div');
   div.className = 'message ' + role;
-  const label = role === 'user' ? 'Tú' : 'El Profe 2.0';
+  const label = role === 'user' ? 'Tú' : 'Planixa';
 
   const actions = role === 'assistant'
     ? '<button class="copy-msg-btn" title="Copiar respuesta" style="background:none;border:none;color:var(--text-light);font-size:12px;cursor:pointer;padding:2px 6px;border-radius:4px;transition:all 0.15s;opacity:0.5;float:right;">📋</button>'
@@ -1094,7 +1094,7 @@ async function initLang() {
   const user = await api('GET', '/api/user');
   if (user.lang) {
     if (user.lang === 'en') {
-      document.title = 'El Profe 2.0 - MINERD Lesson Planner';
+      document.title = 'Planixa - MINERD Lesson Planner';
     }
   }
 }
@@ -1388,7 +1388,7 @@ on("pinInput", "keydown", e => { if (e.key === 'Enter') $('pinUnlockBtn').click(
 /* ── ONBOARDING ── */
 let onbStep = 0;
 const onbSteps = [
-  { icon: '👋', title: '¡Bienvenido a El Profe 2.0!', desc: 'Tu asistente personal de planificación docente del MINERD. Crea unidades, planificaciones diarias, semanales, rúbricas y exámenes con IA.' },
+  { icon: '👋', title: '¡Bienvenido a Planixa!', desc: 'Tu asistente personal de planificación docente del MINERD. Crea unidades, planificaciones diarias, semanales, rúbricas y exámenes con IA.' },
   { icon: '💬', title: 'Chat con IA', desc: 'Escribe lo que necesitas y el AI te generará la planificación completa. Usa los botones rápidos para Unidad, Plan Diario, Semanal, Rúbrica y Examen.' },
   { icon: '📋', title: 'Organiza tu trabajo', desc: 'Usa las pestañas para ver tu calendario, plantillas, estudiantes, horario, plan anual y estadísticas. Todo en un solo lugar.' }
 ];

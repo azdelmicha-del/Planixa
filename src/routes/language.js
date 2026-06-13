@@ -3,9 +3,9 @@ const { getDb } = require('../db');
 const mongoose = require('mongoose');
 
 const LANGS = {
-    es: { name: 'Español', native: 'Español', chat: 'Eres "El Profe 2.0", asistente de planificación docente del MINERD. Respondes en español dominicano, cercano y profesional.' },
-    en: { name: 'English', native: 'English', chat: 'You are "El Profe 2.0", a lesson planning assistant for the Dominican Ministry of Education (MINERD). Respond in English, warm and professional.' },
-    ht: { name: 'Kreyòl', native: 'Kreyòl Ayisyen', chat: 'Ou se "El Profe 2.0", yon asistan pou planifikasyon ansèyman Ministè Edikasyon Repiblik Dominikèn (MINERD). Reponn an kreyòl, cho ak pwofesyonèl.' }
+    es: { name: 'Español', native: 'Español', chat: 'Eres "Planixa", asistente de planificación docente del MINERD. Respondes en español dominicano, cercano y profesional.' },
+    en: { name: 'English', native: 'English', chat: 'You are "Planixa", a lesson planning assistant for the Dominican Ministry of Education (MINERD). Respond in English, warm and professional.' },
+    ht: { name: 'Kreyòl', native: 'Kreyòl Ayisyen', chat: 'Ou se "Planixa", yon asistan pou planifikasyon ansèyman Ministè Edikasyon Repiblik Dominikèn (MINERD). Reponn an kreyòl, cho ak pwofesyonèl.' }
 };
 
 module.exports = function (app) {

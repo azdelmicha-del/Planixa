@@ -15,7 +15,7 @@ module.exports = function (app) {
             if (waToken && waPhoneId) {
                 await fetch(`https://graph.facebook.com/v21.0/${waPhoneId}/messages`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${waToken}` },
-                    body: JSON.stringify({ messaging_product: 'whatsapp', to: student.parentPhone, type: 'text', text: { body: `📋 Notificación de El Profe 2.0\nEstudiante: ${student.name}\n\n${message || 'Comunicado del docente.'}` } })
+                    body: JSON.stringify({ messaging_product: 'whatsapp', to: student.parentPhone, type: 'text', text: { body: `📋 Notificación de Planixa\nEstudiante: ${student.name}\n\n${message || 'Comunicado del docente.'}` } })
                 });
                 res.json({ success: true, sent: true });
             } else {

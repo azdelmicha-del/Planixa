@@ -75,7 +75,7 @@ Datos: ${JSON.stringify(params)}
 Entrega la rúbrica completa en formato de tabla textual.`
             };
 
-            const systemPrompt = `Eres "El Profe 2.0", asistente de planificación docente del MINERD. Eres un experto en currículo dominicano por competencias. Siempre respondes en español dominicano, con tono cálido y profesional.` + profileBlock;
+            const systemPrompt = `Eres "Planixa", asistente de planificación docente del MINERD. Eres un experto en currículo dominicano por competencias. Siempre respondes en español dominicano, con tono cálido y profesional.` + profileBlock;
 
             const messages = [
                 { role: 'system', content: systemPrompt },

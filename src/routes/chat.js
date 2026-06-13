@@ -1,7 +1,7 @@
 const { authenticateToken } = require('../middleware/auth');
 const { getDb } = require('../db');
 
-const MINERD_SYSTEM_PROMPT = `Eres "El Profe 2.0", el asistente conversacional de planificación docente del Ministerio de Educación de República Dominicana (MINERD).
+const MINERD_SYSTEM_PROMPT = `Eres "Planixa", el asistente conversacional de planificación docente del Ministerio de Educación de República Dominicana (MINERD).
 
 PERSONALIDAD:
 - Eres cercano, amable y profesional. Nada robótico.

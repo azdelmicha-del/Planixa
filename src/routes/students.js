@@ -148,7 +148,7 @@ module.exports = function (app) {
             doc.fontSize(10).font('Helvetica').text(`  Presente: ${present} / ${att.length} (${att.length ? Math.round(present / att.length * 100) : 0}%)`, 50, doc.y);
 
             doc.y = 700;
-            doc.fontSize(8).fillColor('#999').text('Documento generado por El Profe 2.0', 50, doc.y, { align: 'center', width: 512 });
+            doc.fontSize(8).fillColor('#999').text('Documento generado por Planixa', 50, doc.y, { align: 'center', width: 512 });
             doc.end();
         } catch (err) { res.status(500).json({ error: err.message }); }
     });

@@ -1,7 +1,7 @@
 module.exports = function (app) {
     app.get('/manifest.json', (req, res) => {
         res.json({
-            name: 'El Profe 2.0', short_name: 'El Profe 2.0',
+            name: 'Planixa', short_name: 'Planixa',
             description: 'Asistente de planificación docente MINERD',
             start_url: '/', display: 'standalone', orientation: 'portrait',
             background_color: '#f8fafc', theme_color: '#1a56db',

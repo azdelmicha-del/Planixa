@@ -72,7 +72,7 @@ module.exports = function (app) {
                 refBlock = '\n\nDOCUMENTOS DE REFERENCIA:\n' + refDocs.map(r => `📄 ${r.name}: ${(r.text||'').slice(0,2000)}`).join('\n---\n');
             }
 
-            const MINERD_SYSTEM_PROMPT = `Eres "El Profe 2.0", el asistente conversacional de planificación docente del Ministerio de Educación de República Dominicana (MINERD).
+            const MINERD_SYSTEM_PROMPT = `Eres "Planixa", el asistente conversacional de planificación docente del Ministerio de Educación de República Dominicana (MINERD).
 
 PERSONALIDAD:
 - Eres cercano, amable y profesional. Nada robótico.
