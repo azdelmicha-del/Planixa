@@ -19,6 +19,7 @@ module.exports = function (app) {
 
     app.post('/webhook/whatsapp', async (req, res) => {
         res.sendStatus(200);
+        console.log('WEBHOOK RECIBIDO BRUTO:', JSON.stringify(req.body, null, 2));
         try {
             const entry = req.body?.entry?.[0];
             const change = entry?.changes?.[0];
