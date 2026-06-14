@@ -95,14 +95,26 @@ async function enterApp() {
   updateSidebarUser();
   if (currentUser.is_admin) {
     if ($('adminPanelBtn')) $('adminPanelBtn').style.display = 'inline-flex';
-    if ($('adminNavTab')) $('adminNavTab').style.display = 'inline-block';
+    if ($('adminNavTab')) {
+      $('adminNavTab').style.display = 'inline-block';
+      document.querySelectorAll('.nav-tab').forEach(t => {
+        if (t.id !== 'adminNavTab') t.style.display = 'none';
+      });
+      if ($('topNewBtn')) $('topNewBtn').style.display = 'none';
+    }
+    await loadPanelContent('chat-main');
+    loadConversations();
+    checkBoot();
+    $('profLang').value = currentUser.lang || 'es';
+    switchTab('admin');
+  } else {
+    // Load chat panel first so its elements exist
+    await loadPanelContent('chat-main');
+    loadConversations();
+    checkBoot();
+    $('profLang').value = currentUser.lang || 'es';
+    switchTab('chat');
   }
-  // Load chat panel first so its elements exist
-  await loadPanelContent('chat-main');
-  loadConversations();
-  checkBoot();
-  $('profLang').value = currentUser.lang || 'es';
-  switchTab('chat');
 }
 
 function updateSidebarUser() {
