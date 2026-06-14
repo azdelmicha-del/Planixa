@@ -133,6 +133,8 @@ module.exports = function (app) {
                     { _id: activeConv._id },
                     { $push: { messages: { $each: newMessages } } }
                 );
+                if (!activeConv.messages) activeConv.messages = [];
+                activeConv.messages.push(...newMessages);
             } else {
                 const insertResult = await getDb().collection('conversations').insertOne({
                     userId,
@@ -148,9 +150,7 @@ module.exports = function (app) {
             await getDb().collection('client_messages').insertOne({ phone: from, message: reply, direction: 'outgoing', employeeId: null, employeeName: 'Bot WhatsApp', createdAt: new Date() });
 
             // --- 2. ENTREGA DE PDFS POR WHATSAPP ---
-            if (reply.includes('[GENERATE_PDF]')) {
-                const cleanReply = reply.replace(/\[GENERATE_PDF\]/g, '').trim();
-                
+            if (reply.includes('[GENERATE_PDF]') || reply.length > 500) {
                 // Generar PDF
                 const pdfDir = path.join(PROJECT_ROOT, 'public', 'downloads');
                 if (!fs.existsSync(pdfDir)) {
@@ -162,8 +162,8 @@ module.exports = function (app) {
                 
                 await createPdfFromConv(activeConv, user, pdfPath);
                 
-                // Enviar Mensaje de texto indicando que ahí va el PDF
-                await sendWhatsAppMessage(from, cleanReply || "Aquí tienes tu planificación en PDF, profe:");
+                // Enviar Mensaje de texto corto indicando que ahí va el PDF, y NO enviar todo el texto largo
+                await sendWhatsAppMessage(from, "Aquí tienes tu planificación en formato PDF, profe 📄✨");
                 
                 // Enviar el PDF como documento
                 await sendWhatsAppDocument(from, pdfUrl, pdfFilename);
