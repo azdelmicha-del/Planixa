@@ -336,8 +336,14 @@ Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el co
                 await sendWhatsAppMessage(from, "Aquí tienes tu planificación en formato PDF, profe 📄✨");
                 await sendWhatsAppDocument(from, pdfUrl, pdfFilename);
             } else {
+                // Formatear Markdown a WhatsApp (Convertir ** en * y quitar hashtags de títulos)
+                let waReply = reply.replace(/\*\*/g, '*');
+                waReply = waReply.replace(/^###\s+/gm, '*');
+                waReply = waReply.replace(/^##\s+/gm, '*');
+                waReply = waReply.replace(/^#\s+/gm, '*');
+                
                 // Mensaje normal, particionado si es muy largo
-                const chunks = reply.match(/.{1,4000}/g) || [];
+                const chunks = waReply.match(/.{1,4000}/g) || [];
                 for (const chunk of chunks) {
                     await sendWhatsAppMessage(from, chunk);
                 }
