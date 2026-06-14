@@ -98,7 +98,8 @@ async function enterApp() {
     if ($('adminNavTab')) {
       $('adminNavTab').style.display = 'inline-block';
       document.querySelectorAll('.nav-tab').forEach(t => {
-        if (t.id !== 'adminNavTab') t.style.display = 'none';
+        const allowed = ['admin', 'chat', 'clients'];
+        if (!allowed.includes(t.dataset.tab)) t.style.display = 'none';
       });
       if ($('topNewBtn')) $('topNewBtn').style.display = 'none';
     }
