@@ -105,6 +105,7 @@ async function enterApp() {
     if ($('adminPanelBtn')) $('adminPanelBtn').style.display = 'inline-flex';
     if ($('adminNavTab')) {
       $('adminNavTab').style.display = 'inline-block';
+      if ($('clientsNavTab')) $('clientsNavTab').style.display = 'inline-block';
       document.querySelectorAll('.nav-tab').forEach(t => {
         const allowed = ['admin', 'clients'];
         if (!allowed.includes(t.dataset.tab)) t.style.display = 'none';
