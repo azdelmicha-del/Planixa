@@ -1,0 +1,94 @@
+    <div class="admin-layout" style="display:flex; height:100%; gap:15px; padding:15px; box-sizing:border-box;">
+      <!-- Col 1: Clientes y Configs -->
+      <div class="admin-col-1" style="width: 25%; min-width: 250px; background:var(--bg); border:1px solid var(--border); border-radius:12px; display:flex; flex-direction:column; overflow:hidden;">
+        <div style="padding:15px; border-bottom:1px solid var(--border); font-weight:bold;">⚙️ Admin SaaS</div>
+        <div style="padding:10px;">
+          <input type="text" id="adminSearchUsers" placeholder="🔍 Buscar cliente..." style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); box-sizing:border-box;">
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:5px; padding:0 10px 10px;">
+          <button id="adminTabDash" style="flex:1; padding:5px; font-size:12px; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">Dashboard</button>
+          <button id="adminTabUsers" style="flex:1; padding:5px; font-size:12px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:4px; cursor:pointer;">Monitoreo</button>
+          <button id="adminTabManage" style="flex:1; padding:5px; font-size:12px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:4px; cursor:pointer;">Gestión</button>
+          <button id="adminTabBroadcast" style="flex:1; padding:5px; font-size:12px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:4px; cursor:pointer;">Difusión</button>
+          <button id="adminTabConfig" style="flex:1; padding:5px; font-size:12px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:4px; cursor:pointer;">Config IA</button>
+        </div>
+        <div id="adminUserList" style="flex:1; overflow-y:auto; padding:0 10px 10px; display:flex; flex-direction:column; gap:5px;"></div>
+      </div>
+      <!-- Col 2: Historial del Cliente -->
+      <div class="admin-col-2" style="flex:1; background:var(--bg); border:1px solid var(--border); border-radius:12px; display:flex; flex-direction:column; overflow:hidden;">
+        <div style="padding:15px; border-bottom:1px solid var(--border); font-weight:bold;">💬 Panel Central <span id="adminActiveUserName" style="font-weight:normal; color:var(--text-light); margin-left:10px;"></span></div>
+        <div id="adminDashView" style="display:flex; flex:1; padding:20px; overflow-y:auto; flex-direction:column; gap:20px;">
+          <h3>Dashboard de Analíticas Visuales</h3>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
+            <div style="background:var(--card); padding:20px; border-radius:8px; border:1px solid var(--border); text-align:center;">
+              <h4 style="color:var(--text-light); font-size:13px; margin-bottom:5px;">Total Usuarios</h4>
+              <div id="dashTotalUsers" style="font-size:28px; font-weight:bold; color:var(--primary);">0</div>
+            </div>
+            <div style="background:var(--card); padding:20px; border-radius:8px; border:1px solid var(--border); text-align:center;">
+              <h4 style="color:var(--text-light); font-size:13px; margin-bottom:5px;">Usuarios Pro (Activos)</h4>
+              <div id="dashActiveUsers" style="font-size:28px; font-weight:bold; color:var(--accent);">0</div>
+            </div>
+            <div style="background:var(--card); padding:20px; border-radius:8px; border:1px solid var(--border); text-align:center;">
+              <h4 style="color:var(--text-light); font-size:13px; margin-bottom:5px;">MRR Estimado</h4>
+              <div id="dashMRR" style="font-size:28px; font-weight:bold; color:#f59e0b;">$0</div>
+            </div>
+            <div style="background:var(--card); padding:20px; border-radius:8px; border:1px solid var(--border); text-align:center;">
+              <h4 style="color:var(--text-light); font-size:13px; margin-bottom:5px;">Planificaciones Generadas</h4>
+              <div id="dashConversations" style="font-size:28px; font-weight:bold; color:#8b5cf6;">0</div>
+            </div>
+          </div>
+        </div>
+        <div id="adminBroadcastView" style="display:none; flex:1; padding:20px; overflow-y:auto; flex-direction:column; gap:15px;">
+          <h3>Difusión Masiva (Broadcast)</h3>
+          <p style="font-size:13px; color:var(--text-light);">Envía un mensaje a los usuarios por WhatsApp o Email.</p>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <label style="font-size:13px; font-weight:bold;">Filtro de Usuarios</label>
+            <select id="broadcastFilter" style="padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);">
+              <option value="all">Todos los usuarios</option>
+              <option value="free">Usuarios Plan Trial (Gratis)</option>
+              <option value="pro">Usuarios Plan Pro (Activos)</option>
+            </select>
+            <label style="font-size:13px; font-weight:bold;">Mensaje de la Campaña</label>
+            <textarea id="broadcastMessage" rows="5" placeholder="Escribe el mensaje promocional aquí..." style="padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); resize:vertical; font-family:inherit;"></textarea>
+            <button id="sendBroadcastBtn" style="align-self:flex-end; padding:10px 20px; background:#f59e0b; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Enviar Masivo 🚀</button>
+          </div>
+        </div>
+        <div id="adminManageView" style="display:none; flex:1; padding:20px; overflow-y:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border); text-align:left;">
+                <th style="padding:10px;">Nombre</th>
+                <th>Teléfono</th>
+                <th>Plan</th>
+                <th>Uso</th>
+                <th>Vence</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="adminManageTableBody"></tbody>
+          </table>
+        </div>
+        <div id="adminPromptView" style="display:none; flex:1; padding:20px; overflow-y:auto; flex-direction:column; gap:15px;">
+          <h3>Configuración del System Prompt (Cerebro de la IA)</h3>
+          <p style="font-size:13px; color:var(--text-light);">Este texto define la personalidad y las reglas que seguirá Planixa tanto en WhatsApp como en la Web App. Al editarlo, los cambios se aplican inmediatamente.</p>
+          <textarea id="adminPromptTextarea" style="flex:1; min-height:400px; padding:15px; border-radius:8px; border:1px solid var(--border); background:var(--bg-hover); color:var(--text); font-family:monospace; font-size:13px; resize:none;"></textarea>
+          <div style="text-align:right; margin-top:10px;">
+            <button id="adminSavePromptBtn" style="padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Guardar Prompt</button>
+          </div>
+        </div>
+        <div id="adminChatView" style="display:none; flex:1; overflow-y:auto; padding:15px; flex-direction:column; gap:15px;">
+          <div style="text-align:center; color:var(--text-light); margin-top:50px;">Selecciona un usuario a la izquierda para espiar su conversación en vivo.</div>
+        </div>
+      </div>
+      <!-- Col 3: Asistente IA -->
+      <div class="admin-col-3" style="width: 30%; min-width: 300px; background:var(--bg); border:1px solid var(--border); border-radius:12px; display:flex; flex-direction:column; overflow:hidden;">
+        <div style="padding:15px; border-bottom:1px solid var(--border); font-weight:bold;">🤖 Soporte Admin</div>
+        <div id="adminAiChat" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:10px; font-size:13px;">
+          <div style="background:var(--bg-hover); padding:10px; border-radius:8px;">Hola, soy tu IA de soporte técnico y negocios. Puedo ayudarte a analizar las conversaciones de tus clientes o sugerirte mejoras.</div>
+        </div>
+        <div style="padding:10px; border-top:1px solid var(--border); display:flex; gap:10px;">
+          <input type="text" id="adminAiInput" placeholder="Pregúntale a la IA..." style="flex:1; padding:8px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); box-sizing:border-box;">
+          <button id="adminAiSendBtn" style="background:var(--primary); color:white; border:none; border-radius:6px; padding:0 15px; cursor:pointer;">➔</button>
+        </div>
+      </div>
+    </div>

@@ -88,7 +88,15 @@ on("registerForm", "submit", async e => {
 /* ── APP ── */
 let currentUser = null;
 
+async function loadComponents() {
+  try {
+    const r = await fetch('/public/components/modals.html');
+    if(r.ok) document.getElementById('modals-container').innerHTML = await r.text();
+  } catch(e) { console.error('Error loading components', e); }
+}
+
 async function enterApp() {
+  await loadComponents();
   $('authOverlay').style.display = 'none';
   $('appLayout').style.display = 'flex';
   currentUser = await api('GET', '/api/user');
@@ -98,10 +106,14 @@ async function enterApp() {
     if ($('adminNavTab')) {
       $('adminNavTab').style.display = 'inline-block';
       document.querySelectorAll('.nav-tab').forEach(t => {
-        const allowed = ['admin', 'chat', 'clients'];
+        const allowed = ['admin', 'clients'];
         if (!allowed.includes(t.dataset.tab)) t.style.display = 'none';
       });
       if ($('topNewBtn')) $('topNewBtn').style.display = 'none';
+      if ($('sidebar')) $('sidebar').style.display = 'none';
+      if ($('adminLogoutContainer')) $('adminLogoutContainer').style.display = 'block';
+      if ($('darkToggleAdmin')) $('darkToggleAdmin').style.display = 'block';
+      if ($('headerActions')) $('headerActions').style.display = 'none';
     }
     await loadPanelContent('chat-main');
     loadConversations();
@@ -174,10 +186,12 @@ on("adminPanelBtn", "click", () => {
 on("logoutBtn", "click", () => {
   localStorage.removeItem('planif_token');
   localStorage.removeItem('planif_userId');
-  token = null; userId = null; currentConversationId = null;
-  $('appLayout').style.display = 'none';
-  $('authOverlay').style.display = 'flex';
-  $('loginPhone').value = ''; $('loginPassword').value = '';
+  location.reload();
+});
+on("logoutBtnAdmin", "click", () => {
+  localStorage.removeItem('planif_token');
+  localStorage.removeItem('planif_userId');
+  location.reload();
 });
 
 /* ── CONVERSATIONS ── */
@@ -582,6 +596,7 @@ function applyTheme(dark) {
   $('darkToggle').textContent = dark ? '\u2600\uFE0F' : '\uD83C\uDF19';
 }
 on("darkToggle", "click", () => applyTheme(!document.body.classList.contains('dark')));
+on("darkToggleAdmin", "click", () => applyTheme(!document.body.classList.contains('dark')));
 if (localStorage.getItem('planif_dark') === '1') applyTheme(true);
 
 /* ── SEARCH ── */

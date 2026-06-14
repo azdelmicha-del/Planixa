@@ -1,0 +1,303 @@
+<!-- Modals -->
+<div id="studentModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:440px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 id="studentModalTitle" style="font-size:18px;">👨‍🎓 Estudiante</h2>
+      <button onclick="closeStudentModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <input id="sName" placeholder="Nombre completo" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="sGrade" placeholder="Grado" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="sSection" placeholder="Sección" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="sParent" placeholder="Teléfono del padre/madre" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <textarea id="sNotes" placeholder="Notas" rows="2" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px;background:var(--bg);color:var(--text);resize:vertical;"></textarea>
+    <button id="saveStudentBtn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Guardar</button>
+  </div>
+</div>
+
+<div id="examModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:460px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 style="font-size:18px;">📝 Generar Examen</h2>
+      <button onclick="closeExamModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <input id="exGrade" placeholder="Grado" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="exArea" placeholder="Área/Materia" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="exTopic" placeholder="Tema" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <select id="exType" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+      <option value="mixed">Mixto (selección múltiple + V/F + desarrollo)</option>
+      <option value="multiple">Selección múltiple</option>
+      <option value="truefalse">Verdadero y Falso</option>
+      <option value="completion">Completar espacios</option>
+      <option value="open">Preguntas abiertas</option>
+    </select>
+    <input id="exNum" type="number" placeholder="Cantidad de preguntas (10)" min="5" max="30" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:20px;background:var(--bg);color:var(--text);">
+    <button id="generateExamBtn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Generar Examen</button>
+  </div>
+</div>
+
+<div id="scheduleModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:400px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 id="schedModalTitle" style="font-size:18px;">🗓️ Clase</h2>
+      <button onclick="closeSchedModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <select id="scDay" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+      <option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option>
+    </select>
+    <input id="scStart" type="time" placeholder="Inicio" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="scEnd" type="time" placeholder="Fin" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="scSubject" placeholder="Materia" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="scGrade" placeholder="Grado" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="scRoom" placeholder="Aula" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:20px;background:var(--bg);color:var(--text);">
+    <button id="saveSchedBtn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Guardar</button>
+  </div>
+</div>
+
+<div id="annualModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:460px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 id="annualModalTitle" style="font-size:18px;">📆 Plan Anual</h2>
+      <button onclick="closeAnnualModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <input id="apYear" type="number" placeholder="Año" value="2026" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <select id="apPeriod" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+      <option value="1er Período">1er Período (Sep-Dic)</option>
+      <option value="2do Período">2do Período (Ene-Mar)</option>
+      <option value="3er Período">3er Período (Abr-Jun)</option>
+    </select>
+    <input id="apSubject" placeholder="Materia" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="apGrade" placeholder="Grado" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <textarea id="apContent" placeholder="Contenidos a trabajar (separados por coma)" rows="3" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);resize:vertical;"></textarea>
+    <textarea id="apGoals" placeholder="Metas/Logros esperados" rows="2" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px;background:var(--bg);color:var(--text);resize:vertical;"></textarea>
+    <button id="saveAnnualBtn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Guardar</button>
+  </div>
+</div>
+
+<div id="calcModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:400px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 style="font-size:18px;">🧮 Calculadora de Promedios</h2>
+      <button onclick="closeCalcModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <div id="calcGrades">
+      <div class="calc-row" style="display:flex;gap:8px;margin-bottom:8px;">
+        <input class="calc-name" placeholder="Evaluación" style="flex:2;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text);">
+        <input class="calc-score" type="number" placeholder="Nota" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text);">
+        <input class="calc-max" type="number" placeholder="Máx" value="100" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;background:var(--bg);color:var(--text);">
+        <button class="calc-remove" style="background:none;border:none;color:#dc2626;font-size:18px;cursor:pointer;">×</button>
+      </div>
+    </div>
+    <button id="addCalcRow" style="background:none;border:1px dashed var(--border);border-radius:6px;padding:6px;width:100%;font-size:12px;color:var(--text-light);cursor:pointer;margin-bottom:12px;">+ Agregar evaluación</button>
+    <div id="calcResult" style="font-size:16px;font-weight:700;text-align:center;padding:10px;background:var(--bg);border-radius:8px;margin-bottom:12px;">Promedio: —</div>
+    <button id="calcFromStudent" style="width:100%;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:6px;">Cargar notas de estudiante</button>
+  </div>
+</div>
+
+<div id="reminderModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:420px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 id="remModalTitle" style="font-size:18px;">⏰ Recordatorio</h2>
+      <button onclick="closeRemModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <input id="remTitle" placeholder="Título" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="remDate" type="date" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <select id="remType" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+      <option value="general">General</option><option value="exam">Examen</option><option value="meeting">Reunión</option><option value="class">Clase</option><option value="deadline">Entrega</option>
+    </select>
+    <textarea id="remDesc" placeholder="Descripción" rows="2" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px;background:var(--bg);color:var(--text);resize:vertical;"></textarea>
+    <button id="saveRemBtn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Guardar</button>
+  </div>
+</div>
+
+<div id="customTmplModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:460px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 id="ctModalTitle" style="font-size:18px;">📝 Plantilla</h2>
+      <button onclick="closeCtModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <input id="ctName" placeholder="Nombre de la plantilla" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="ctGrade" placeholder="Grado (opcional)" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="ctArea" placeholder="Área (opcional)" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <textarea id="ctPrompt" placeholder="Escribe el prompt que quieres que el AI use para esta plantilla..." rows="4" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px;background:var(--bg);color:var(--text);resize:vertical;"></textarea>
+    <button id="saveCtBtn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Guardar</button>
+  </div>
+</div>
+
+<div id="versionModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:480px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 style="font-size:18px;">🕐 Historial de versiones</h2>
+      <button onclick="closeVersionModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <button id="saveVersionBtn" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:16px;">💾 Guardar versión actual</button>
+    <div id="versionsList" style="font-size:13px;"></div>
+  </div>
+</div>
+
+<div id="importModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:460px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 style="font-size:18px;">📥 Importar planificación</h2>
+      <button onclick="closeImportModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">Sube un archivo PDF o Word con una planificación existente y la procesaremos.</p>
+    <input type="file" id="importFileInput" accept=".pdf,.docx,.txt" style="margin-bottom:16px;">
+    <button id="processImportBtn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Procesar</button>
+    <div id="importResult" style="margin-top:12px;font-size:13px;color:var(--text);"></div>
+  </div>
+</div>
+
+<div id="pinOverlay" style="display:none;position:fixed;inset:0;z-index:10000;background:#0f172a;padding:20px;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="background:var(--card);border-radius:var(--radius);padding:40px;max-width:340px;width:100%;text-align:center;">
+    <h2 style="font-size:20px;margin-bottom:8px;">🔒 Planixa</h2>
+    <p style="font-size:13px;color:var(--text-light);margin-bottom:20px;">Ingresa tu PIN para desbloquear</p>
+    <input id="pinInput" type="password" maxlength="4" inputmode="numeric" placeholder="****" style="width:100%;padding:14px;border:2px solid var(--border);border-radius:8px;font-size:24px;text-align:center;letter-spacing:8px;background:var(--bg);color:var(--text);outline:none;">
+    <div id="pinError" style="color:#dc2626;font-size:13px;margin-top:8px;display:none;">PIN incorrecto</div>
+    <button id="pinUnlockBtn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;margin-top:12px;">Desbloquear</button>
+  </div>
+</div>
+
+<div id="onboardingOverlay" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.7);backdrop-filter:blur(5px);padding:30px;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:440px;width:100%;padding:32px;text-align:center;">
+    <div id="onbStep" style="font-size:32px;margin-bottom:12px;">👋</div>
+    <h2 id="onbTitle" style="font-size:20px;margin-bottom:8px;">¡Bienvenido a Planixa!</h2>
+    <p id="onbDesc" style="font-size:14px;color:var(--text-light);line-height:1.6;margin-bottom:20px;">
+      Tu asistente personal de planificación docente del MINERD. Crea unidades, planificaciones diarias, semanales, rúbricas y exámenes con IA.
+    </p>
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:20px;">
+      <span class="onb-dot" style="width:10px;height:10px;border-radius:50%;background:var(--primary);"></span>
+      <span class="onb-dot" style="width:10px;height:10px;border-radius:50%;background:var(--border);"></span>
+      <span class="onb-dot" style="width:10px;height:10px;border-radius:50%;background:var(--border);"></span>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button id="onbSkipBtn" style="background:none;border:none;color:var(--text-light);font-size:13px;padding:10px 20px;cursor:pointer;">Saltar</button>
+      <button id="onbNextBtn" style="background:var(--primary);border:none;color:#fff;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Siguiente</button>
+    </div>
+  </div>
+</div>
+
+<div id="journalModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:460px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h2 style="font-size:18px;">📓 Entrada del diario</h2>
+      <button onclick="closeJournalModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <input id="jrDate" type="date" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <select id="jrMood" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+      <option value="excelente">😊 Excelente</option><option value="bueno">🙂 Bueno</option><option value="neutral">😐 Neutral</option><option value="malo">😞 Difícil</option>
+    </select>
+    <textarea id="jrContent" placeholder="Escribe tu reflexión del día..." rows="5" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px;background:var(--bg);color:var(--text);resize:vertical;"></textarea>
+    <input id="jrTags" placeholder="Etiquetas (separadas por coma)" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px;background:var(--bg);color:var(--text);">
+    <button id="saveJournalBtn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Guardar</button>
+  </div>
+</div>
+
+<div id="evalModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:420px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h2 style="font-size:18px;">📅 Evaluación</h2>
+      <button onclick="closeEvalModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <input id="evTitle" placeholder="Nombre de la evaluación" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="evDate" type="date" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <select id="evType" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+      <option value="exam">Examen</option><option value="quiz">Prueba corta</option><option value="project">Proyecto</option><option value="homework">Tarea</option><option value="oral">Exposición oral</option>
+    </select>
+    <input id="evSubject" placeholder="Materia" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="evGrade" placeholder="Grado" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="evNotes" placeholder="Notas" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px;background:var(--bg);color:var(--text);">
+    <button id="saveEvalBtn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Guardar</button>
+  </div>
+</div>
+
+<div id="adecuacionModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:460px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 style="font-size:18px;">🎓 Adecuación Curricular</h2>
+      <button onclick="closeAdecuacionModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <input id="adGrade" placeholder="Grado" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="adArea" placeholder="Área/Materia" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <input id="adTopic" placeholder="Tema" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;background:var(--bg);color:var(--text);">
+    <textarea id="adNeeds" placeholder="Necesidades educativas del estudiante" rows="3" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px;background:var(--bg);color:var(--text);resize:vertical;"></textarea>
+    <button id="generateAdecuacionBtn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Generar Adecuación</button>
+  </div>
+</div>
+
+<input type="file" id="importFileInputHidden" accept=".pdf,.docx,.txt" style="display:none">
+
+<div id="profileOverlay" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:420px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 style="font-size:18px;">&#128100; Mi perfil</h2>
+      <button onclick="closeProfile()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Nombre</label>
+    <input id="profName" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:12px;">
+    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Grado que trabajas</label>
+    <input id="profGrade" placeholder="Ej: 5to de Primaria" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:12px;">
+    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Área/Materia</label>
+    <input id="profArea" placeholder="Ej: Matemática" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:12px;">
+    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Centro educativo</label>
+    <input id="profSchool" placeholder="Nombre del centro" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:20px;">
+    <div style="margin-bottom:16px;">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Idioma</label>
+      <select id="profLang" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);">
+        <option value="es">Español</option>
+        <option value="en">English</option>
+        <option value="ht">Kreyòl Ayisyen</option>
+      </select>
+    </div>
+      <button onclick="savePin()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;margin-bottom:8px;">🔒 Configurar PIN</button>
+      <button onclick="saveProfile()" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Guardar</button>
+  </div>
+</div>
+
+<input type="file" id="pdfFileInput" accept=".pdf,application/pdf" style="display:none">
+
+<div id="generateOverlay" style="display:none;position:fixed;inset:0;z-index:9997;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);padding:20px;">
+  <div style="background:var(--card);border-radius:var(--radius);max-width:460px;margin:60px auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 id="genModalTitle" style="font-size:18px;">&#128218; Generar Unidad Didáctica</h2>
+      <button onclick="closeGenerateModal()" style="background:none;border:none;font-size:22px;color:var(--text-light);cursor:pointer;">&times;</button>
+    </div>
+    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Grado</label>
+    <input id="genGrade" placeholder="Ej: 5to de Primaria" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:12px;background:var(--bg);color:var(--text);">
+    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Área/Materia</label>
+    <input id="genArea" placeholder="Ej: Matemática" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:12px;background:var(--bg);color:var(--text);">
+    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:4px;">Tema</label>
+    <input id="genTopic" placeholder="Ej: Fracciones" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:20px;background:var(--bg);color:var(--text);">
+    <button id="genSubmitBtn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Generar</button>
+  </div>
+</div>
+
+<div id="adminEditModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:var(--bg); padding:20px; border-radius:12px; width:400px; max-width:90%;">
+    <h3>Editar Membresía</h3>
+    <input type="hidden" id="adminEditUserId">
+    <div style="margin-top:15px;">
+      <label style="display:block; margin-bottom:5px;">Plan actual</label>
+      <select id="adminEditPlan" style="width:100%; padding:8px; border-radius:6px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border);">
+        <option value="trial">Prueba (3 días / 5 planes)</option>
+        <option value="1_week">1 Semana (10 planes)</option>
+        <option value="1_month">1 Mes (60 planes)</option>
+        <option value="3_months">3 Meses</option>
+        <option value="6_months">6 Meses</option>
+        <option value="1_year">1 Año</option>
+        <option value="lifetime">De por vida</option>
+      </select>
+    </div>
+    <div style="margin-top:15px;">
+      <label style="display:block; margin-bottom:5px;">Fecha de Vencimiento</label>
+      <input type="date" id="adminEditExpires" style="width:100%; padding:8px; border-radius:6px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border);">
+    </div>
+    <div style="margin-top:15px; display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="adminEditResetCount" checked>
+      <label for="adminEditResetCount" style="font-size:13px;">Reiniciar contador a 0</label>
+    </div>
+    <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+      <button id="adminEditCancelBtn" style="padding:8px 15px; border-radius:6px; background:transparent; color:var(--text); border:1px solid var(--border); cursor:pointer;">Cancelar</button>
+      <button id="adminEditSaveBtn" style="padding:8px 15px; border-radius:6px; background:var(--primary); color:white; border:none; cursor:pointer;">Guardar</button>
+    </div>
+  </div>
+</div>

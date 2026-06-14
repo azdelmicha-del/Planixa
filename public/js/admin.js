@@ -10,43 +10,40 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  document.getElementById('adminTabUsers')?.addEventListener('click', () => {
-    document.getElementById('adminManageView').style.display = 'none';
-    document.getElementById('adminPromptView').style.display = 'none';
-    document.getElementById('adminChatView').style.display = 'flex';
-    document.getElementById('adminTabUsers').style.background = 'var(--primary)';
-    document.getElementById('adminTabUsers').style.color = 'white';
-    document.getElementById('adminTabManage').style.background = 'var(--bg-hover)';
-    document.getElementById('adminTabManage').style.color = 'var(--text)';
-    document.getElementById('adminTabConfig').style.background = 'var(--bg-hover)';
-    document.getElementById('adminTabConfig').style.color = 'var(--text)';
-  });
+  function switchAdminTab(activeTabId, activeViewId, callback) {
+    const tabs = ['adminTabDash', 'adminTabUsers', 'adminTabManage', 'adminTabBroadcast', 'adminTabConfig'];
+    const views = ['adminDashView', 'adminChatView', 'adminManageView', 'adminBroadcastView', 'adminPromptView'];
+    
+    tabs.forEach(tab => {
+      const el = document.getElementById(tab);
+      if(el) {
+        if(tab === activeTabId) {
+          el.style.background = 'var(--primary)';
+          el.style.color = 'white';
+        } else {
+          el.style.background = 'var(--bg-hover)';
+          el.style.color = 'var(--text)';
+        }
+      }
+    });
 
-  document.getElementById('adminTabManage')?.addEventListener('click', () => {
-    document.getElementById('adminChatView').style.display = 'none';
-    document.getElementById('adminPromptView').style.display = 'none';
-    document.getElementById('adminManageView').style.display = 'block';
-    document.getElementById('adminTabManage').style.background = 'var(--primary)';
-    document.getElementById('adminTabManage').style.color = 'white';
-    document.getElementById('adminTabUsers').style.background = 'var(--bg-hover)';
-    document.getElementById('adminTabUsers').style.color = 'var(--text)';
-    document.getElementById('adminTabConfig').style.background = 'var(--bg-hover)';
-    document.getElementById('adminTabConfig').style.color = 'var(--text)';
-    renderAdminManageTable();
-  });
+    views.forEach(view => {
+      const el = document.getElementById(view);
+      if(el) {
+        if(view === activeViewId) el.style.display = view === 'adminChatView' || view === 'adminDashView' ? 'flex' : 'block';
+        else el.style.display = 'none';
+      }
+    });
+    
+    if(callback) callback();
+  }
 
-  document.getElementById('adminTabConfig')?.addEventListener('click', () => {
-    document.getElementById('adminChatView').style.display = 'none';
-    document.getElementById('adminManageView').style.display = 'none';
-    document.getElementById('adminPromptView').style.display = 'flex';
-    document.getElementById('adminTabConfig').style.background = 'var(--primary)';
-    document.getElementById('adminTabConfig').style.color = 'white';
-    document.getElementById('adminTabUsers').style.background = 'var(--bg-hover)';
-    document.getElementById('adminTabUsers').style.color = 'var(--text)';
-    document.getElementById('adminTabManage').style.background = 'var(--bg-hover)';
-    document.getElementById('adminTabManage').style.color = 'var(--text)';
-    loadAdminConfig();
-  });
+  document.getElementById('adminTabDash')?.addEventListener('click', () => switchAdminTab('adminTabDash', 'adminDashView', loadAdminDashboard));
+  document.getElementById('adminTabUsers')?.addEventListener('click', () => switchAdminTab('adminTabUsers', 'adminChatView'));
+  document.getElementById('adminTabManage')?.addEventListener('click', () => switchAdminTab('adminTabManage', 'adminManageView', renderAdminManageTable));
+  document.getElementById('adminTabBroadcast')?.addEventListener('click', () => switchAdminTab('adminTabBroadcast', 'adminBroadcastView'));
+  document.getElementById('adminTabConfig')?.addEventListener('click', () => switchAdminTab('adminTabConfig', 'adminPromptView', loadAdminConfig));
+
 
   document.getElementById('adminSearchUsers')?.addEventListener('input', (e) => {
     renderAdminUserList(e.target.value);
@@ -67,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/api/admin/users/' + userId, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') },
         body: JSON.stringify({ plan, plan_expires: expires || null, resetCount })
       });
       if (res.ok) {
@@ -86,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch('/api/admin/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') },
         body: JSON.stringify({ system_prompt: prompt })
       });
       if (res.ok) alert('Prompt guardado exitosamente.');
@@ -106,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadAdminUsers() {
   try {
     const res = await fetch('/api/admin/users', {
-      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') }
     });
     const data = await res.json();
     console.log("Admin Users Data:", data);
@@ -194,7 +191,7 @@ window.editUserMembership = function(userId, plan, expires) {
 async function loadAdminConfig() {
   try {
     const res = await fetch('/api/admin/settings', {
-      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') }
     });
     if (res.ok) {
       const data = await res.json();
@@ -210,7 +207,7 @@ window.deleteAdminUser = async function(id) {
   try {
     const res = await fetch('/api/admin/users/' + id, {
       method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') }
     });
     if (res.ok) {
       loadAdminUsers();
@@ -225,7 +222,7 @@ async function loadAdminUserChat(userId) {
   view.innerHTML = '<div style="text-align:center; margin-top:20px;">Cargando chat...</div>';
   try {
     const res = await fetch('/api/admin/users/' + userId + '/chat', {
-      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') }
     });
     const data = await res.json();
     view.innerHTML = '';
@@ -294,6 +291,7 @@ async function sendAdminAiMessage() {
   userDiv.style.padding = '10px';
   userDiv.style.borderRadius = '8px';
   userDiv.style.alignSelf = 'flex-end';
+  userDiv.style.whiteSpace = 'pre-wrap';
   userDiv.innerText = text;
   chat.appendChild(userDiv);
   
@@ -314,7 +312,7 @@ async function sendAdminAiMessage() {
   try {
     const res = await fetch('/api/admin/ai', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') },
       body: JSON.stringify({ message: text, context })
     });
     const data = await res.json();
@@ -325,7 +323,15 @@ async function sendAdminAiMessage() {
     botDiv.style.padding = '10px';
     botDiv.style.borderRadius = '8px';
     botDiv.style.alignSelf = 'flex-start';
-    botDiv.innerText = data.response;
+    botDiv.style.whiteSpace = 'pre-wrap';
+    
+    if (data.error) {
+      botDiv.innerText = "Error: " + data.error;
+      botDiv.style.color = '#dc2626';
+    } else {
+      botDiv.innerText = data.response || 'Sin respuesta';
+    }
+    
     chat.appendChild(botDiv);
     
     chat.scrollTop = chat.scrollHeight;
@@ -334,3 +340,47 @@ async function sendAdminAiMessage() {
     loadDiv.style.color = 'red';
   }
 }
+
+async function loadAdminDashboard() {
+  try {
+    const res = await fetch('/api/admin/dashboard', {
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById('dashTotalUsers').textContent = data.totalUsers || 0;
+      document.getElementById('dashActiveUsers').textContent = data.activeUsers || 0;
+      document.getElementById('dashMRR').textContent = '$' + (data.mrr || 0);
+      document.getElementById('dashConversations').textContent = data.totalConversations || 0;
+    }
+  } catch (err) {
+    console.error('Error cargando dashboard:', err);
+  }
+}
+
+document.getElementById('sendBroadcastBtn')?.addEventListener('click', async () => {
+  const message = document.getElementById('broadcastMessage').value;
+  const filter = document.getElementById('broadcastFilter').value;
+  if (!message.trim()) {
+    alert('Escribe un mensaje para enviar.');
+    return;
+  }
+  if (!confirm('¿Estás seguro de enviar esta difusión masiva a los usuarios seleccionados?')) return;
+  
+  try {
+    const res = await fetch('/api/admin/broadcast', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') },
+      body: JSON.stringify({ message, filter })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.message);
+      document.getElementById('broadcastMessage').value = '';
+    } else {
+      alert(data.error || 'Error al enviar difusión');
+    }
+  } catch (err) {
+    alert('Error de conexión');
+  }
+});

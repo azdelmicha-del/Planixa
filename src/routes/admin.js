@@ -73,21 +73,110 @@ module.exports = function (app) {
         if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
         try {
             const { message, context } = req.body;
-            const { generateAIResponse } = require('../services/openai');
-            const systemPrompt = "Eres el asistente personal experto del Administrador del negocio SaaS 'Planixa'. Ayudas a gestionar ventas, redactar estrategias de marketing, evaluar chats de clientes para mejorar prompts, y dar soporte técnico. Responde de forma brillante, comercial y técnica.";
+            const db = getDb();
+            const totalUsers = await db.collection('users').countDocuments();
+            const totalConversations = await db.collection('conversations').countDocuments();
+            const totalMessages = await db.collection('client_messages').countDocuments();
+            
+            const recentMessages = await db.collection('client_messages').find({ direction: 'incoming' }).sort({ createdAt: -1 }).limit(30).toArray();
+            const recentMessagesText = recentMessages.map(m => `[${new Date(m.createdAt).toLocaleDateString()}] ${m.phone}: ${m.message}`).join('\n');
+            
+            const topUsers = await db.collection('users').find({}).sort({ plans_count: -1 }).limit(20).toArray();
+            const usersSummary = topUsers.map(u => `- ${u.name || u.phone} (Plan: ${u.plan || 'free'}): ${u.plans_count || 0} planificaciones`).join('\n');
+
+            const systemPrompt = `Eres el asistente experto del CEO de 'Planixa', un SaaS B2B/B2C de planificación docente en República Dominicana.
+Tu objetivo es analizar datos de clientes, detectar quejas o fricciones, sugerir mejoras en ventas, y ayudar a tomar decisiones de negocio.
+Responde de forma clara, directa, profesional y muy analítica. Nunca des respuestas genéricas. Ve al grano.
+
+=== DATOS EN VIVO DE LA PLATAFORMA ===
+- Usuarios Registrados: ${totalUsers}
+- Planificaciones Creadas: ${totalConversations}
+- Mensajes de WhatsApp procesados: ${totalMessages}
+
+=== TOP USUARIOS ===
+${usersSummary || 'No hay datos suficientes.'}
+
+=== ÚLTIMOS MENSAJES DE CLIENTES ===
+(Usa esto para detectar quejas, bugs reportados o dudas frecuentes)
+${recentMessagesText || 'No hay mensajes recientes.'}
+`;
             
             const messages = [
                 { role: 'system', content: systemPrompt },
             ];
             
             if (context) {
-                messages.push({ role: 'user', content: `Contexto del cliente actual: ${JSON.stringify(context)}` });
+                messages.push({ role: 'user', content: `El administrador está viendo actualmente el perfil de este cliente: ${JSON.stringify(context)}` });
             }
             messages.push({ role: 'user', content: message });
             
-            const aiResponse = await generateAIResponse(messages, 'gpt-4o', 1500, 0.7);
-            res.json({ response: aiResponse });
-        } catch (err) { res.status(500).json({ error: err.message }); }
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o',
+                    messages: messages,
+                    max_tokens: 1500,
+                    temperature: 0.5
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error?.message || 'Error en OpenAI');
+            
+            if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                console.error("OpenAI no devolvió texto válido:", JSON.stringify(data));
+                return res.json({ response: "Lo siento, la IA no devolvió una respuesta válida." });
+            }
+            res.json({ response: data.choices[0].message.content });
+        } catch (err) { 
+            console.error('Error en /api/admin/ai:', err);
+            res.status(500).json({ error: err.message }); 
+        }
+    });
+
+    app.get('/api/admin/dashboard', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
+        try {
+            const db = getDb();
+            const totalUsers = await db.collection('users').countDocuments();
+            const activeUsers = await db.collection('users').countDocuments({ plan: { $ne: 'free' } });
+            const totalConversations = await db.collection('conversations').countDocuments();
+            
+            // Simple logic for new users in last 7 days
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const recentUsers = await db.collection('users').countDocuments({ created_at: { $gte: sevenDaysAgo } });
+
+            res.json({
+                totalUsers,
+                activeUsers,
+                totalConversations,
+                recentUsers,
+                mrr: activeUsers * 15 // Assuming $15 avg per paid user
+            });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.post('/api/admin/broadcast', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
+        try {
+            const { message, filter } = req.body;
+            if (!message) return res.status(400).json({ error: 'Mensaje requerido' });
+            
+            // This is a placeholder for actual WhatsApp/Email integration
+            // e.g. await sendWhatsAppMessage(to, message)
+            
+            console.log(`[BROADCAST] Enviar a ${filter || 'todos'}: ${message}`);
+            
+            res.json({ success: true, message: 'Difusión enviada correctamente en modo simulación' });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
     });
 
     const DEFAULT_PROMPT = `Eres "Planixa", el asistente conversacional de planificación docente del Ministerio de Educación de República Dominicana (MINERD).
