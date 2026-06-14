@@ -657,17 +657,8 @@ async function switchTab(tab) {
   }
   if (tab === 'admin') {
     const side = $('aiChatSidepanel'); if (side) side.style.display = 'none';
-    document.querySelectorAll('.nav-tab').forEach(t => { if(t.dataset.tab !== 'admin') t.style.display = 'none'; });
   } else {
     const side = $('aiChatSidepanel'); if (side) side.style.display = 'flex';
-    // Restore nav tabs unless it is adminNavTab and user is not admin
-    document.querySelectorAll('.nav-tab').forEach(t => {
-      if (t.dataset.tab === 'admin') {
-         t.style.display = (currentUser && currentUser.is_admin) ? 'inline-block' : 'none';
-      } else {
-         t.style.display = 'inline-block';
-      }
-    });
   }
 
   if (tab === 'chat') {
