@@ -316,7 +316,7 @@ Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el co
                     await sendWhatsAppMessage(from, "Ocurrió un error rellenando el documento Word.");
                 }
             }
-            else if (reply.includes('[GENERATE_PDF]') || reply.length > 500) {
+            else if (reply.includes('[GENERATE_PDF]')) {
                 // Generar PDF legacy (Planificaciones regulares)
                 const pdfDir = path.join(PROJECT_ROOT, 'public', 'downloads');
                 if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
