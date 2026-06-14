@@ -147,8 +147,12 @@ FLUJO DE CONVERSACIÓN:
                 const cleanReply = reply.replace(/\[GENERATE_PDF\]/g, '').trim();
                 
                 // Generar PDF
+                const pdfDir = path.join(PROJECT_ROOT, 'public', 'downloads');
+                if (!fs.existsSync(pdfDir)) {
+                    fs.mkdirSync(pdfDir, { recursive: true });
+                }
                 const pdfFilename = `planificacion-${from}-${Date.now()}.pdf`;
-                const pdfPath = path.join(PROJECT_ROOT, 'public', 'downloads', pdfFilename);
+                const pdfPath = path.join(pdfDir, pdfFilename);
                 const pdfUrl = `https://planixa.onrender.com/downloads/${pdfFilename}`;
                 
                 await createPdfFromConv(activeConv, user, pdfPath);
