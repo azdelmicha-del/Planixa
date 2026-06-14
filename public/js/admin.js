@@ -12,21 +12,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('adminTabUsers')?.addEventListener('click', () => {
     document.getElementById('adminManageView').style.display = 'none';
+    document.getElementById('adminPromptView').style.display = 'none';
     document.getElementById('adminChatView').style.display = 'flex';
     document.getElementById('adminTabUsers').style.background = 'var(--primary)';
     document.getElementById('adminTabUsers').style.color = 'white';
     document.getElementById('adminTabManage').style.background = 'var(--bg-hover)';
     document.getElementById('adminTabManage').style.color = 'var(--text)';
+    document.getElementById('adminTabConfig').style.background = 'var(--bg-hover)';
+    document.getElementById('adminTabConfig').style.color = 'var(--text)';
   });
 
   document.getElementById('adminTabManage')?.addEventListener('click', () => {
     document.getElementById('adminChatView').style.display = 'none';
+    document.getElementById('adminPromptView').style.display = 'none';
     document.getElementById('adminManageView').style.display = 'block';
     document.getElementById('adminTabManage').style.background = 'var(--primary)';
     document.getElementById('adminTabManage').style.color = 'white';
     document.getElementById('adminTabUsers').style.background = 'var(--bg-hover)';
     document.getElementById('adminTabUsers').style.color = 'var(--text)';
+    document.getElementById('adminTabConfig').style.background = 'var(--bg-hover)';
+    document.getElementById('adminTabConfig').style.color = 'var(--text)';
     renderAdminManageTable();
+  });
+
+  document.getElementById('adminTabConfig')?.addEventListener('click', () => {
+    document.getElementById('adminChatView').style.display = 'none';
+    document.getElementById('adminManageView').style.display = 'none';
+    document.getElementById('adminPromptView').style.display = 'flex';
+    document.getElementById('adminTabConfig').style.background = 'var(--primary)';
+    document.getElementById('adminTabConfig').style.color = 'white';
+    document.getElementById('adminTabUsers').style.background = 'var(--bg-hover)';
+    document.getElementById('adminTabUsers').style.color = 'var(--text)';
+    document.getElementById('adminTabManage').style.background = 'var(--bg-hover)';
+    document.getElementById('adminTabManage').style.color = 'var(--text)';
+    loadAdminConfig();
   });
 
   document.getElementById('adminSearchUsers')?.addEventListener('input', (e) => {
@@ -59,6 +78,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (err) {
       console.error(err);
+    }
+  });
+
+  document.getElementById('adminSavePromptBtn')?.addEventListener('click', async () => {
+    const prompt = document.getElementById('adminPromptTextarea').value;
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        body: JSON.stringify({ system_prompt: prompt })
+      });
+      if (res.ok) alert('Prompt guardado exitosamente.');
+      else alert('Error al guardar config');
+    } catch (err) {
+      alert('Error: ' + err.message);
     }
   });
 
@@ -148,15 +182,26 @@ function renderAdminManageTable(filter = '') {
   });
 }
 
-window.editUserMembership = function(id, plan, expires) {
-  document.getElementById('adminEditUserId').value = id;
-  document.getElementById('adminEditPlan').value = plan || 'trial';
-  if (expires && expires !== 'null') {
-    document.getElementById('adminEditExpires').value = new Date(expires).toISOString().split('T')[0];
-  } else {
-    document.getElementById('adminEditExpires').value = '';
-  }
+window.editUserMembership = function(userId, plan, expires) {
+  document.getElementById('adminEditUserId').value = userId;
+  document.getElementById('adminEditPlan').value = plan;
+  document.getElementById('adminEditExpires').value = expires ? expires.split('T')[0] : '';
+  document.getElementById('adminEditResetCount').checked = true;
   document.getElementById('adminEditModal').style.display = 'flex';
+}
+
+async function loadAdminConfig() {
+  try {
+    const res = await fetch('/api/admin/settings', {
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById('adminPromptTextarea').value = data.system_prompt;
+    }
+  } catch (err) {
+    console.error('Error cargando settings', err);
+  }
 }
 
 window.deleteAdminUser = async function(id) {

@@ -99,7 +99,9 @@ Datos: ${JSON.stringify(params)}
 Entrega la rúbrica completa en formato de tabla textual.`
             };
 
-            const systemPrompt = `Eres "Planixa", asistente de planificación docente del MINERD. Eres un experto en currículo dominicano por competencias. Siempre respondes en español dominicano, con tono cálido y profesional.` + profileBlock;
+            let config = await getDb().collection('settings').findOne({ _id: 'global' });
+            const globalPrompt = config?.system_prompt || `Eres "Planixa", asistente de planificación docente del MINERD. Responde en español dominicano.`;
+            const systemPrompt = globalPrompt + '\n' + profileBlock;
 
             const messages = [
                 { role: 'system', content: systemPrompt },
