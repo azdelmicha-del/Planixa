@@ -2,7 +2,7 @@ let adminUsers = [];
 let adminActiveUserId = null;
 
 // Initialize Admin Panel bindings
-document.addEventListener('DOMContentLoaded', () => {
+window.initAdminPanel = function() {
   const adminNavTab = document.getElementById('adminNavTab');
   if (adminNavTab) {
     adminNavTab.addEventListener('click', () => {
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('adminAiInput')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendAdminAiMessage();
   });
-});
+};
 
 async function loadAdminUsers() {
   try {

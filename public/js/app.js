@@ -661,6 +661,7 @@ async function loadPanelContent(id) {
     if (!r.ok) return;
     el.innerHTML = await r.text();
     panelCache.add(id);
+    if (name === 'admin' && typeof initAdminPanel === 'function') initAdminPanel();
   } catch (e) { /* panel file not available */ }
 }
 
