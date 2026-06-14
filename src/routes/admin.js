@@ -6,7 +6,9 @@ module.exports = function (app) {
     app.get('/api/admin/users', authenticateToken, async (req, res) => {
         if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
         try {
+            console.log("Admin requested /api/admin/users. User ID:", req.userId);
             const users = await getDb().collection('users').find({}, { projection: { password: 0 } }).sort({ created_at: -1 }).toArray();
+            console.log("Found users for admin:", users.length);
             res.json({ users: users.map(u => ({ id: u._id.toString(), phone: u.phone, name: u.name || '', role: u.role, is_admin: !!u.is_admin, plan: u.plan || 'free', plan_expires: u.plan_expires, plans_count: u.plans_count || 0, created_at: u.created_at })) });
         } catch (err) { res.status(500).json({ error: err.message }); }
     });

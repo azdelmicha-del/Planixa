@@ -109,6 +109,7 @@ async function loadAdminUsers() {
       headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
     });
     const data = await res.json();
+    console.log("Admin Users Data:", data);
     adminUsers = data.users || [];
     renderAdminUserList();
     if (document.getElementById('adminManageView').style.display === 'block') {
