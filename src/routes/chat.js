@@ -118,10 +118,34 @@ module.exports = function (app) {
             return d?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
         }
 
+        const user = userDoc;
+        
+        // --- LIMIT CHECK ---
+        const limits = { 'trial': 5, '1_week': 10, '1_month': 60, '3_months': 180, '6_months': 360, '1_year': 720, 'lifetime': 999999 };
+        const maxPlans = limits[user.plan] || 5;
+        const currentCount = user.plans_count || 0;
+        
+        if (user.plan !== 'lifetime' && !user.is_admin) {
+            const now = new Date();
+            const expires = user.plan_expires ? new Date(user.plan_expires) : null;
+            if (!expires || expires < now) {
+                return res.json({ response: `⚠️ Tu membresía ha expirado.\nPara seguir creando planificaciones, por favor renueva tu plan desde el soporte técnico.` });
+            }
+            if (currentCount >= maxPlans) {
+                return res.json({ response: `⚠️ Has alcanzado el límite de ${maxPlans} planificaciones en tu plan actual.\nPor favor renueva tu plan para continuar trabajando.` });
+            }
+        }
+
         let text = await tryOpenAI();
-        if (text) { console.log('Respondido por OpenAI'); return res.json({ response: text }); }
-        text = await tryGemini();
-        if (text) { console.log('Respondido por Gemini'); return res.json({ response: text }); }
+        if (!text) text = await tryGemini();
+        
+        if (text) {
+            // Increment plans_count if the response is substantial (likely a planification)
+            if (text.length > 300 && user.plan !== 'lifetime' && !user.is_admin) {
+                await getDb().collection('users').updateOne({ _id: user._id }, { $inc: { plans_count: 1 } });
+            }
+            return res.json({ response: text });
+        }
 
         res.json({ response: '⚠️ No pude conectar con los servicios de IA. Intenta de nuevo.' });
     });

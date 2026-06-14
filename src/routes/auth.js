@@ -14,7 +14,7 @@ module.exports = function (app) {
             const existing = await getDb().collection('users').findOne({ phone });
             if (existing) return res.status(400).json({ success: false, message: 'Este número ya está registrado' });
             const hashed = await bcrypt.hash(password, 12);
-            await getDb().collection('users').insertOne({ phone, password: hashed, name, grade: '', area: '', school: '', role: 'teacher', is_admin: false, plan: 'trial', plan_expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), created_at: new Date() });
+            await getDb().collection('users').insertOne({ phone, password: hashed, name, grade: '', area: '', school: '', role: 'teacher', is_admin: false, plan: 'trial', plan_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), plans_count: 0, created_at: new Date() });
             console.log('Nuevo usuario:', phone);
             res.json({ success: true, message: 'Registrado correctamente' });
         } catch (err) {

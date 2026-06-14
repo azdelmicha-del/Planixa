@@ -149,6 +149,7 @@
                 <th style="padding:10px;">Nombre</th>
                 <th>Teléfono</th>
                 <th>Plan</th>
+                <th>Uso</th>
                 <th>Vence</th>
                 <th>Acciones</th>
               </tr>
@@ -513,8 +514,9 @@
       <div style="margin-top:15px;">
         <label style="display:block; margin-bottom:5px;">Plan actual</label>
         <select id="adminEditPlan" style="width:100%; padding:8px; border-radius:6px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border);">
-          <option value="trial">Prueba (Trial)</option>
-          <option value="1_month">1 Mes</option>
+          <option value="trial">Prueba (3 días / 5 planes)</option>
+          <option value="1_week">1 Semana (10 planes)</option>
+          <option value="1_month">1 Mes (60 planes)</option>
           <option value="3_months">3 Meses</option>
           <option value="6_months">6 Meses</option>
           <option value="1_year">1 Año</option>
@@ -524,6 +526,10 @@
       <div style="margin-top:15px;">
         <label style="display:block; margin-bottom:5px;">Fecha de Vencimiento</label>
         <input type="date" id="adminEditExpires" style="width:100%; padding:8px; border-radius:6px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border);">
+      </div>
+      <div style="margin-top:15px; display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="adminEditResetCount" checked>
+        <label for="adminEditResetCount" style="font-size:13px;">Reiniciar contador de planificaciones a 0</label>
       </div>
       <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
         <button id="adminEditCancelBtn" style="padding:8px 15px; border-radius:6px; background:transparent; color:var(--text); border:1px solid var(--border); cursor:pointer;">Cancelar</button>

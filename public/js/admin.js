@@ -44,11 +44,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const userId = document.getElementById('adminEditUserId').value;
     const plan = document.getElementById('adminEditPlan').value;
     const expires = document.getElementById('adminEditExpires').value;
+    const resetCount = document.getElementById('adminEditResetCount').checked;
     try {
       const res = await fetch('/api/admin/users/' + userId, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
-        body: JSON.stringify({ plan, plan_expires: expires || null })
+        body: JSON.stringify({ plan, plan_expires: expires || null, resetCount })
       });
       if (res.ok) {
         document.getElementById('adminEditModal').style.display = 'none';
@@ -136,6 +137,7 @@ function renderAdminManageTable(filter = '') {
       <td style="padding:10px;">${u.name || 'Sin nombre'}</td>
       <td>${u.phone}</td>
       <td><span style="background:var(--bg-hover); padding:2px 6px; border-radius:4px; font-size:11px;">${u.plan || 'trial'}</span></td>
+      <td>${u.plans_count || 0}</td>
       <td>${expiresStr}</td>
       <td>
         <button onclick="editUserMembership('${u.id}', '${u.plan}', '${u.plan_expires}')" style="background:var(--primary); color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer; font-size:11px;">Editar</button>

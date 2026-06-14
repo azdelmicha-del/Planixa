@@ -4,6 +4,27 @@ const mongoose = require('mongoose');
 
 module.exports = function (app) {
 
+    async function checkLimits(userId) {
+        const user = await getDb().collection('users').findOne({ _id: new mongoose.Types.ObjectId(userId) });
+        if (!user) return { allowed: false, error: 'Usuario no encontrado' };
+        const limits = { 'trial': 5, '1_week': 10, '1_month': 60, '3_months': 180, '6_months': 360, '1_year': 720, 'lifetime': 999999 };
+        const maxPlans = limits[user.plan] || 5;
+        const currentCount = user.plans_count || 0;
+        if (user.plan !== 'lifetime' && !user.is_admin) {
+            const now = new Date();
+            const expires = user.plan_expires ? new Date(user.plan_expires) : null;
+            if (!expires || expires < now) return { allowed: false, error: 'Tu membresía ha expirado. Por favor renueva tu plan en el soporte técnico.' };
+            if (currentCount >= maxPlans) return { allowed: false, error: `Has alcanzado el límite de ${maxPlans} planificaciones en tu plan.` };
+        }
+        return { allowed: true, user };
+    }
+
+    async function incrementCount(user) {
+        if (user.plan !== 'lifetime' && !user.is_admin) {
+            await getDb().collection('users').updateOne({ _id: user._id }, { $inc: { plans_count: 1 } });
+        }
+    }
+
     /* ── GENERATE STRUCTURED PLAN ────────────────────────────────────────── */
     app.post('/api/generate', authenticateToken, async (req, res) => {
         try {
@@ -14,7 +35,10 @@ module.exports = function (app) {
                 return res.status(400).json({ error: 'Tipo inválido. Use: unit, daily, weekly, rubric' });
             }
 
-            const userDoc = await getDb().collection('users').findOne({ _id: new mongoose.Types.ObjectId(req.userId) });
+            const limitCheck = await checkLimits(req.userId);
+            if (!limitCheck.allowed) return res.json({ response: '⚠️ ' + limitCheck.error });
+            const userDoc = limitCheck.user;
+
             let profileBlock = '';
             if (userDoc) {
                 const parts = [];
@@ -99,6 +123,7 @@ Entrega la rúbrica completa en formato de tabla textual.`
             let text = await tryOpenAI();
             if (!text) return res.json({ response: '⚠️ No pude conectar con el servicio de IA. Intenta de nuevo.' });
 
+            await incrementCount(userDoc);
             res.json({ response: text, type });
         } catch (err) {
             console.error('Generate error:', err.message);
@@ -112,7 +137,10 @@ Entrega la rúbrica completa en formato de tabla textual.`
             const { grade, area, topic, type, numQuestions } = req.body;
             if (!topic) return res.status(400).json({ error: 'Tema requerido' });
 
-            const userDoc = await getDb().collection('users').findOne({ _id: new mongoose.Types.ObjectId(req.userId) });
+            const limitCheck = await checkLimits(req.userId);
+            if (!limitCheck.allowed) return res.json({ response: '⚠️ ' + limitCheck.error });
+            const userDoc = limitCheck.user;
+
             const lang = userDoc?.lang || 'es';
 
             const examTypes = {
@@ -148,6 +176,7 @@ Responde en ${lang === 'en' ? 'inglés' : lang === 'ht' ? 'criollo haitiano' : '
                 });
                 if (r.ok) { const d = await r.json(); text = d?.choices?.[0]?.message?.content?.trim(); }
             }
+            if (text) await incrementCount(userDoc);
             res.json({ response: text || '⚠️ No pude generar el examen. Intenta de nuevo.' });
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
@@ -157,6 +186,11 @@ Responde en ${lang === 'en' ? 'inglés' : lang === 'ht' ? 'criollo haitiano' : '
         try {
             const { grade, area, topic, duration } = req.body;
             if (!topic) return res.status(400).json({ error: 'Tema requerido' });
+
+            const limitCheck = await checkLimits(req.userId);
+            if (!limitCheck.allowed) return res.json({ response: '⚠️ ' + limitCheck.error });
+            const userDoc = limitCheck.user;
+
             const prompt = `Diseña un proyecto de aprendizaje basado en proyectos (ABP) para ${grade || 'el grado'} de ${area || 'la materia'} sobre "${topic}".
 Duración: ${duration || '4 semanas'}.
 
@@ -183,6 +217,7 @@ Responde en español dominicano, formato claro y listo para aplicar.`;
                 });
                 if (r.ok) { const d = await r.json(); text = d?.choices?.[0]?.message?.content?.trim(); }
             }
+            if (text) await incrementCount(userDoc);
             res.json({ response: text || '⚠️ No pude generar el proyecto. Intenta de nuevo.' });
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
@@ -192,6 +227,11 @@ Responde en español dominicano, formato claro y listo para aplicar.`;
         try {
             const { grade, area, topic, needs } = req.body;
             if (!topic) return res.status(400).json({ error: 'Tema requerido' });
+
+            const limitCheck = await checkLimits(req.userId);
+            if (!limitCheck.allowed) return res.json({ response: '⚠️ ' + limitCheck.error });
+            const userDoc = limitCheck.user;
+
             const prompt = `Diseña un plan de adecuación curricular para un estudiante de ${grade || 'el grado'} en ${area || 'la materia'} sobre "${topic}".
 Necesidades educativas: ${needs || 'dificultades de aprendizaje generales'}.
 
@@ -215,6 +255,7 @@ Responde en español dominicano.`;
                 });
                 if (r.ok) { const d = await r.json(); text = d?.choices?.[0]?.message?.content?.trim(); }
             }
+            if (text) await incrementCount(userDoc);
             res.json({ response: text || '⚠️ No pude generar la adecuación. Intenta de nuevo.' });
         } catch (err) { res.status(500).json({ error: err.message }); }
     });

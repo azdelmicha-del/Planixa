@@ -7,7 +7,7 @@ module.exports = function (app) {
         if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
         try {
             const users = await getDb().collection('users').find({}, { projection: { password: 0 } }).sort({ created_at: -1 }).toArray();
-            res.json({ users: users.map(u => ({ id: u._id.toString(), phone: u.phone, name: u.name || '', role: u.role, is_admin: !!u.is_admin, plan: u.plan || 'free', plan_expires: u.plan_expires, created_at: u.created_at })) });
+            res.json({ users: users.map(u => ({ id: u._id.toString(), phone: u.phone, name: u.name || '', role: u.role, is_admin: !!u.is_admin, plan: u.plan || 'free', plan_expires: u.plan_expires, plans_count: u.plans_count || 0, created_at: u.created_at })) });
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
@@ -30,6 +30,7 @@ module.exports = function (app) {
             if (req.body.phone !== undefined) update.phone = String(req.body.phone || '').trim();
             if (req.body.plan !== undefined) update.plan = String(req.body.plan);
             if (req.body.plan_expires !== undefined) update.plan_expires = req.body.plan_expires ? new Date(req.body.plan_expires) : null;
+            if (req.body.resetCount === true) update.plans_count = 0;
             await getDb().collection('users').updateOne({ _id }, { $set: update });
             res.json({ success: true });
         } catch (err) { res.status(500).json({ error: err.message }); }
