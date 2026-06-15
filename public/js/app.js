@@ -105,10 +105,9 @@ async function enterApp() {
     if ($('adminPanelBtn')) $('adminPanelBtn').style.display = 'inline-flex';
       if ($('adminNavTab')) {
         $('adminNavTab').style.display = 'inline-block';
-        if ($('clientsNavTab')) $('clientsNavTab').style.display = 'inline-block';
         if ($('supervisorNavTab')) $('supervisorNavTab').style.display = 'inline-block';
         document.querySelectorAll('.nav-tab').forEach(t => {
-        const allowed = ['admin', 'clients', 'supervisor'];
+        const allowed = ['admin', 'supervisor'];
         if (!allowed.includes(t.dataset.tab)) t.style.display = 'none';
       });
       if ($('topNewBtn')) $('topNewBtn').style.display = 'none';
@@ -121,9 +120,9 @@ async function enterApp() {
     loadConversations();
     checkBoot();
     $('profLang').value = currentUser.lang || 'es';
-    switchTab('admin');
+    await switchTab('admin');
     if (typeof loadAdminUsers === 'function') loadAdminUsers();
-    if ($('adminTabUsers')) $('adminTabUsers').click();
+    if ($('adminTabDash')) $('adminTabDash').click();
   } else {
     // Load chat panel first so its elements exist
     await loadPanelContent('chat-main');
@@ -688,10 +687,12 @@ async function switchTab(tab) {
     el.classList.remove('active-panel');
     if (id === 'chat-main') continue;
   }
-  if (tab === 'admin') {
+  if (tab === 'admin' || tab === 'supervisor') {
     const side = $('aiChatSidepanel'); if (side) side.style.display = 'none';
+    const voiceBtn = $('voiceBtn'); if (voiceBtn) voiceBtn.style.display = 'none';
   } else {
     const side = $('aiChatSidepanel'); if (side) side.style.display = 'flex';
+    const voiceBtn = $('voiceBtn'); if (voiceBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) voiceBtn.style.display = 'block';
   }
 
   if (tab === 'chat') {
@@ -719,8 +720,6 @@ async function switchTab(tab) {
   if (tab === 'customTemplates') loadCustomTemplates();
   if (tab === 'journal') loadJournal();
   if (tab === 'competencias') loadCompetencias();
-  if (tab === 'clients') loadClients();
-  if (tab === 'evalSchedule') loadEvalSchedule();
   if (tab === 'evalSchedule') loadEvalSchedule();
 }
 document.querySelectorAll('.nav-tab').forEach(tab => {

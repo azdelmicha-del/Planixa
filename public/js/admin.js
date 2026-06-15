@@ -7,6 +7,7 @@ window.initAdminPanel = function() {
   if (adminNavTab) {
     adminNavTab.addEventListener('click', () => {
       loadAdminUsers();
+      document.getElementById('adminTabDash')?.click();
     });
   }
 
@@ -18,11 +19,11 @@ window.initAdminPanel = function() {
       const el = document.getElementById(tab);
       if(el) {
         if(tab === activeTabId) {
-          el.style.background = 'var(--primary)';
-          el.style.color = 'white';
+          el.style.color = 'var(--primary)';
+          el.style.fontWeight = 'bold';
         } else {
-          el.style.background = 'var(--bg-hover)';
-          el.style.color = 'var(--text)';
+          el.style.color = 'var(--text-light)';
+          el.style.fontWeight = 'normal';
         }
       }
     });
@@ -35,6 +36,17 @@ window.initAdminPanel = function() {
       }
     });
     
+    // Toggle side columns based on view
+    const col1 = document.querySelector('.admin-col-1');
+    const col3 = document.querySelector('.admin-col-3');
+    if (activeViewId === 'adminChatView') {
+      if (col1) col1.style.display = 'flex';
+      if (col3) col3.style.display = 'flex';
+    } else {
+      if (col1) col1.style.display = 'none';
+      if (col3) col3.style.display = 'none';
+    }
+
     if(callback) callback();
   }
 
@@ -96,6 +108,25 @@ window.initAdminPanel = function() {
   document.getElementById('adminAiInput')?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendAdminAiMessage();
   });
+
+  const adminVoiceBtn = document.getElementById('adminAiVoiceBtn');
+  if (adminVoiceBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const adminRecognition = new SpeechRecognition();
+    adminRecognition.lang = 'es-DO'; adminRecognition.continuous = false; adminRecognition.interimResults = false;
+    adminVoiceBtn.addEventListener('click', () => {
+      try { adminRecognition.start(); showToast('🎤 Escuchando...', 'success'); } catch (e) { showToast('Error al iniciar voz', 'error'); }
+    });
+    adminRecognition.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      const input = document.getElementById('adminAiInput');
+      input.value = (input.value + ' ' + text).trim();
+      showToast('✅ Texto reconocido', 'success');
+    };
+    adminRecognition.onerror = () => showToast('🎤 No se pudo reconocer la voz', 'error');
+  } else if (adminVoiceBtn) {
+    adminVoiceBtn.style.display = 'none';
+  }
 };
 
 
