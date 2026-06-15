@@ -8,6 +8,8 @@ const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
 const { logApiUsage } = require('../finance');
 const { callSupervisor } = require('../utils/supervisor');
+const mammoth = require('mammoth');
+const pdfParse = require('pdf-parse');
 
 const WA_VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN || 'elprofe2_verify_2026';
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
@@ -32,10 +34,54 @@ module.exports = function (app) {
             const entry = req.body?.entry?.[0];
             const change = entry?.changes?.[0];
             const msg = change?.value?.messages?.[0];
-            if (!msg || msg.type !== 'text') return;
+            const validTypes = ['text', 'audio', 'image', 'document'];
+            if (!msg || !validTypes.includes(msg.type)) return;
 
             const from = msg.from;
-            const text = String(msg.text?.body || '').trim();
+            let text = '';
+            
+            if (msg.type === 'text') {
+                text = String(msg.text?.body || '').trim();
+            } else {
+                await sendWhatsAppMessage(from, "Procesando tu archivo, un momento por favor... ⏳");
+                try {
+                    let mediaId, mimeType;
+                    if (msg.type === 'audio') {
+                        mediaId = msg.audio.id;
+                        mimeType = msg.audio.mime_type;
+                        const buffer = await downloadWhatsAppMedia(mediaId);
+                        const transcription = await processAudioWhisper(buffer);
+                        text = `[Nota de voz transcrita]: ${transcription}`;
+                    } else if (msg.type === 'image') {
+                        mediaId = msg.image.id;
+                        mimeType = msg.image.mime_type;
+                        const buffer = await downloadWhatsAppMedia(mediaId);
+                        const visionText = await processImageGPT(buffer, mimeType);
+                        text = `[Imagen analizada por IA. Contenido]: ${visionText}`;
+                    } else if (msg.type === 'document') {
+                        mediaId = msg.document.id;
+                        mimeType = msg.document.mime_type;
+                        const filename = msg.document.filename || '';
+                        const buffer = await downloadWhatsAppMedia(mediaId);
+                        
+                        if (mimeType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf')) {
+                            const pdfText = await processPDF(buffer);
+                            text = `[Documento PDF "${filename}" extraído]: ${pdfText}`;
+                        } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || filename.toLowerCase().endsWith('.docx')) {
+                            const wordText = await processWord(buffer);
+                            text = `[Documento Word "${filename}" extraído]: ${wordText}`;
+                        } else {
+                            await sendWhatsAppMessage(from, "Lo siento, profe. Solo puedo leer documentos PDF y Word (.docx).");
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Error processing media:", err);
+                    await sendWhatsAppMessage(from, "Ocurrió un error al intentar leer el archivo que enviaste. 😔");
+                    return;
+                }
+            }
+
             if (!text) return;
 
             console.log('WhatsApp de', from, ':', text);
@@ -244,6 +290,81 @@ Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el co
             } catch (err) {
                 console.error("Error en AI Router", err);
             }
+
+// ==========================================
+// MEDIA PROCESSING HELPERS
+// ==========================================
+
+async function downloadWhatsAppMedia(mediaId) {
+    const WA_TOKEN = process.env.WA_TOKEN;
+    if (!WA_TOKEN) throw new Error('No WA_TOKEN found');
+    
+    // 1. Get media URL
+    const res = await fetch(`https://graph.facebook.com/v21.0/${mediaId}`, {
+        headers: { 'Authorization': `Bearer ${WA_TOKEN}` }
+    });
+    if (!res.ok) throw new Error('Failed to get media URL');
+    const data = await res.json();
+    
+    // 2. Download binary data
+    const mediaRes = await fetch(data.url, {
+        headers: { 'Authorization': `Bearer ${WA_TOKEN}` }
+    });
+    if (!mediaRes.ok) throw new Error('Failed to download media buffer');
+    const buffer = await mediaRes.arrayBuffer();
+    return Buffer.from(buffer);
+}
+
+async function processAudioWhisper(buffer) {
+    const formData = new FormData();
+    formData.append('file', new Blob([buffer], { type: 'audio/ogg' }), 'audio.ogg');
+    formData.append('model', 'whisper-1');
+    formData.append('language', 'es');
+    
+    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+        body: formData
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    return data.text;
+}
+
+async function processImageGPT(buffer, mimeType) {
+    const base64 = buffer.toString('base64');
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [{
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Analiza esta imagen y extrae todo el texto o describe detalladamente qué contiene, enfocándote en el contenido educativo o planificación si lo hay. Sé directo, solo da la información.' },
+                    { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } }
+                ]
+            }],
+            max_tokens: 1000
+        })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    return data.choices[0].message.content.trim();
+}
+
+async function processPDF(buffer) {
+    const data = await pdfParse(buffer);
+    return data.text.trim();
+}
+
+async function processWord(buffer) {
+    const data = await mammoth.extractRawText({ buffer });
+    return data.value.trim();
+}
 
             const systemWithRefs = MINERD_SYSTEM_PROMPT + refBlock;
             const messages = [
