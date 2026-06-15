@@ -564,7 +564,7 @@ async function loadAdminDashboard() {
       const data = await res.json();
       document.getElementById('dashTotalUsers').textContent = data.totalUsers || 0;
       document.getElementById('dashActiveUsers').textContent = data.activeUsers || 0;
-      document.getElementById('dashMRR').textContent = '$' + (data.mrr || 0);
+      document.getElementById('dashMRR').textContent = 'RD$ ' + (data.mrr || 0);
       document.getElementById('dashConversations').textContent = data.totalConversations || 0;
     }
   } catch (err) {
