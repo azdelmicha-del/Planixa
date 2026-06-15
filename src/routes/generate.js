@@ -1,5 +1,6 @@
 const { authenticateToken } = require('../middleware/auth');
 const { getDb } = require('../db');
+const { logApiUsage } = require('../finance');
 const mongoose = require('mongoose');
 
 module.exports = function (app) {
@@ -119,6 +120,7 @@ Entrega la rúbrica completa en formato de tabla textual.`
                 });
                 if (!r.ok) return null;
                 const d = await r.json();
+                if (d.usage) await logApiUsage(req.userId, 'Generador: Herramienta General', 'gpt-4o-mini', d.usage);
                 return d?.choices?.[0]?.message?.content?.trim() || null;
             }
 
@@ -176,7 +178,11 @@ Responde en ${lang === 'en' ? 'inglés' : lang === 'ht' ? 'criollo haitiano' : '
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
                     body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 3000, temperature: 0.3, messages })
                 });
-                if (r.ok) { const d = await r.json(); text = d?.choices?.[0]?.message?.content?.trim(); }
+                if (r.ok) { 
+                    const d = await r.json(); 
+                    if (d.usage) await logApiUsage(req.userId, 'Generador: Examen', 'gpt-4o-mini', d.usage);
+                    text = d?.choices?.[0]?.message?.content?.trim(); 
+                }
             }
             if (text) await incrementCount(userDoc);
             res.json({ response: text || '⚠️ No pude generar el examen. Intenta de nuevo.' });
@@ -217,7 +223,11 @@ Responde en español dominicano, formato claro y listo para aplicar.`;
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
                     body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 3000, temperature: 0.3, messages })
                 });
-                if (r.ok) { const d = await r.json(); text = d?.choices?.[0]?.message?.content?.trim(); }
+                if (r.ok) { 
+                    const d = await r.json(); 
+                    if (d.usage) await logApiUsage(req.userId, 'Generador: Proyecto ABP', 'gpt-4o-mini', d.usage);
+                    text = d?.choices?.[0]?.message?.content?.trim(); 
+                }
             }
             if (text) await incrementCount(userDoc);
             res.json({ response: text || '⚠️ No pude generar el proyecto. Intenta de nuevo.' });
@@ -255,7 +265,11 @@ Responde en español dominicano.`;
                     method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
                     body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 3000, temperature: 0.3, messages })
                 });
-                if (r.ok) { const d = await r.json(); text = d?.choices?.[0]?.message?.content?.trim(); }
+                if (r.ok) { 
+                    const d = await r.json(); 
+                    if (d.usage) await logApiUsage(req.userId, 'Generador: Adecuación', 'gpt-4o-mini', d.usage);
+                    text = d?.choices?.[0]?.message?.content?.trim(); 
+                }
             }
             if (text) await incrementCount(userDoc);
             res.json({ response: text || '⚠️ No pude generar la adecuación. Intenta de nuevo.' });

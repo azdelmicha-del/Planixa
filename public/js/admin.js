@@ -84,7 +84,7 @@ window.initAdminPanel = function() {
         document.getElementById('adminEditModal').style.display = 'none';
         loadAdminUsers(); // refresh
       } else {
-        alert('Error guardando membresía');
+        await PremiumModal.alert('Error guardando membresía');
       }
     } catch (err) {
       console.error(err);
@@ -275,7 +275,7 @@ async function saveAdminPrompt() {
   const name = document.getElementById('adminPromptName').value;
   const description = document.getElementById('adminPromptDesc').value;
   const content = document.getElementById('adminPromptContent').value;
-  if (!name || !content) return alert('Nombre y Contenido son requeridos');
+  if (!name || !content) return await PremiumModal.alert('Nombre y Contenido son requeridos');
   
   const method = id ? 'PUT' : 'POST';
   const url = id ? '/api/admin/prompts/' + id : '/api/admin/prompts';
@@ -289,7 +289,7 @@ async function saveAdminPrompt() {
       document.getElementById('adminPromptModal').style.display = 'none';
       loadAdminPrompts();
     } else {
-      alert('Error al guardar el prompt');
+      await PremiumModal.alert('Error al guardar el prompt');
     }
   } catch (err) { console.error(err); }
 }
@@ -297,7 +297,7 @@ async function saveAdminPrompt() {
 async function deleteAdminPrompt() {
   const id = document.getElementById('adminPromptId').value;
   if (!id) return;
-  if (!confirm('¿Seguro que deseas eliminar este agente?')) return;
+  if (!(await PremiumModal.confirm)('¿Seguro que deseas eliminar este agente?')) return;
   try {
     const res = await fetch('/api/admin/prompts/' + id, {
       method: 'DELETE',
@@ -369,9 +369,9 @@ async function saveAdminFormat() {
   const instructions = document.getElementById('adminFormatInstructions').value;
   const fileInput = document.getElementById('adminFormatFile');
   
-  if (!type) return alert('El tipo es requerido');
+  if (!type) return await PremiumModal.alert('El tipo es requerido');
   if (!id && (!fileInput.files || fileInput.files.length === 0)) {
-    return alert('Debes subir un archivo .docx para crear un formato.');
+    return await PremiumModal.alert('Debes subir un archivo .docx para crear un formato.');
   }
   
   const formData = new FormData();
@@ -394,7 +394,7 @@ async function saveAdminFormat() {
       loadAdminFormats();
     } else {
       const data = await res.json();
-      alert('Error al guardar el formato: ' + (data.error || 'Desconocido'));
+      await PremiumModal.alert('Error al guardar el formato: ' + (data.error || 'Desconocido'));
     }
   } catch (err) { console.error(err); }
 }
@@ -402,7 +402,7 @@ async function saveAdminFormat() {
 async function deleteAdminFormat() {
   const id = document.getElementById('adminFormatId').value;
   if (!id) return;
-  if (!confirm('¿Seguro que deseas eliminar este formato?')) return;
+  if (!(await PremiumModal.confirm)('¿Seguro que deseas eliminar este formato?')) return;
   try {
     const res = await fetch('/api/admin/formats/' + id, {
       method: 'DELETE',
@@ -417,7 +417,7 @@ async function deleteAdminFormat() {
 
 
 window.deleteAdminUser = async function(id) {
-  if (!confirm('¿Seguro que deseas eliminar a este usuario por completo? Se borrarán sus conversaciones también.')) return;
+  if (!(await PremiumModal.confirm)('¿Seguro que deseas eliminar a este usuario por completo? Se borrarán sus conversaciones también.')) return;
   try {
     const res = await fetch('/api/admin/users/' + id, {
       method: 'DELETE',
@@ -426,7 +426,7 @@ window.deleteAdminUser = async function(id) {
     if (res.ok) {
       loadAdminUsers();
     } else {
-      alert('Error eliminando usuario. Puede que sea admin.');
+      await PremiumModal.alert('Error eliminando usuario. Puede que sea admin.');
     }
   } catch(e) { console.error(e); }
 }
@@ -564,6 +564,16 @@ async function loadAdminDashboard() {
       const data = await res.json();
       document.getElementById('dashTotalUsers').textContent = data.totalUsers || 0;
       document.getElementById('dashActiveUsers').textContent = data.activeUsers || 0;
+      
+      const elFree = document.getElementById('dashFreeUsers');
+      if(elFree) elFree.textContent = data.freeUsersCount || 0;
+      
+      const elExempt = document.getElementById('dashExemptUsers');
+      if(elExempt) elExempt.textContent = data.exemptUsersCount || 0;
+      
+      const elAdmin = document.getElementById('dashAdminUsers');
+      if(elAdmin) elAdmin.textContent = data.adminUsersCount || 0;
+
       document.getElementById('dashMRR').textContent = 'RD$ ' + (data.mrr || 0);
       document.getElementById('dashConversations').textContent = data.totalConversations || 0;
     }
@@ -576,10 +586,10 @@ document.getElementById('sendBroadcastBtn')?.addEventListener('click', async () 
   const message = document.getElementById('broadcastMessage').value;
   const filter = document.getElementById('broadcastFilter').value;
   if (!message.trim()) {
-    alert('Escribe un mensaje para enviar.');
+    await PremiumModal.alert('Escribe un mensaje para enviar.');
     return;
   }
-  if (!confirm('¿Estás seguro de enviar esta difusión masiva a los usuarios seleccionados?')) return;
+  if (!(await PremiumModal.confirm)('¿Estás seguro de enviar esta difusión masiva a los usuarios seleccionados?')) return;
   
   try {
     const res = await fetch('/api/admin/broadcast', {
@@ -589,12 +599,124 @@ document.getElementById('sendBroadcastBtn')?.addEventListener('click', async () 
     });
     const data = await res.json();
     if (res.ok) {
-      alert(data.message);
+      await PremiumModal.alert(data.message);
       document.getElementById('broadcastMessage').value = '';
     } else {
-      alert(data.error || 'Error al enviar difusión');
+      await PremiumModal.alert(data.error || 'Error al enviar difusión');
     }
   } catch (err) {
-    alert('Error de conexión');
+    await PremiumModal.alert('Error de conexión');
   }
 });
+
+// --- FINANZAS LOGIC ---
+window.initFinancePanel = function() {
+  async function loadFinanceData() {
+    try {
+      const res = await fetch('/api/admin/finance', {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      
+      const balanceEl = document.getElementById('financeBalance');
+      if (balanceEl) balanceEl.textContent = '$' + (data.balance || 0).toFixed(4);
+      
+      const tbody = document.getElementById('financeLogsTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      
+      if (!data.logs || data.logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:15px; text-align:center; color:var(--text-muted);">No hay transacciones registradas aún.</td></tr>';
+        return;
+      }
+
+      data.logs.forEach(log => {
+        const isDeposit = log.deposit > 0;
+        const tr = document.createElement('tr');
+        const d = new Date(log.date);
+        const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+        
+        const editBtn = isDeposit ? ` <span style="cursor:pointer; font-size:12px;" onclick="window.editFinanceDeposit('${log._id}', ${log.deposit})" title="Editar Recarga">✏️</span>` : '';
+        const costStr = isDeposit ? '<span style="color:#10b981;">+$' + log.deposit.toFixed(2) + '</span>' + editBtn : '<span style="color:#ef4444;">-$' + (log.cost || 0).toFixed(6) + '</span>';
+        
+        tr.innerHTML = `
+          <td style="padding:10px 15px; border-bottom:1px solid var(--border); white-space:nowrap;">${dateStr}</td>
+          <td style="padding:10px 15px; border-bottom:1px solid var(--border);">${log.identifier || '-'}</td>
+          <td style="padding:10px 15px; border-bottom:1px solid var(--border);">${log.action || '-'}</td>
+          <td style="padding:10px 15px; border-bottom:1px solid var(--border);"><span style="background:var(--bg-hover); padding:2px 6px; border-radius:4px; font-size:11px;">${log.model || '-'}</span></td>
+          <td style="padding:10px 15px; border-bottom:1px solid var(--border); text-align:right;">${(log.total_tokens || 0).toLocaleString()}</td>
+          <td style="padding:10px 15px; border-bottom:1px solid var(--border); text-align:right; font-family:monospace; font-weight:bold;">${costStr}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (e) {
+      console.error('Error fetching finance:', e);
+    }
+  }
+
+  const refreshBtn = document.getElementById('financeRefreshBtn');
+  if (refreshBtn) refreshBtn.addEventListener('click', loadFinanceData);
+
+  const depositBtn = document.getElementById('financeDepositBtn');
+  if (depositBtn) {
+    depositBtn.addEventListener('click', async () => {
+      const input = document.getElementById('financeDepositInput');
+      if (!input) return;
+      const amount = parseFloat(input.value);
+      if (isNaN(amount) || amount <= 0) {
+        await PremiumModal.alert('Ingresa un monto válido para recargar.');
+        return;
+      }
+      if (!(await PremiumModal.confirm)('¿Confirmas que has depositado $' + amount.toFixed(2) + ' en tu cuenta de OpenAI y deseas añadirlo al balance interno?')) return;
+
+      try {
+        const res = await fetch('/api/admin/finance/deposit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('planif_token')
+          },
+          body: JSON.stringify({ amount })
+        });
+        const data = await res.json();
+        if (data.success) {
+          input.value = '';
+          loadFinanceData();
+        } else {
+          await PremiumModal.alert(data.error || 'Error al recargar');
+        }
+      } catch (err) {
+        await PremiumModal.alert('Error de conexión');
+      }
+    });
+  }
+
+  window.editFinanceDeposit = async function(id, oldAmount) {
+    const newVal = await PremiumModal.prompt('Ingresa el nuevo monto exacto de la recarga:', oldAmount);
+    if (!newVal) return;
+    const amount = parseFloat(newVal);
+    if (isNaN(amount) || amount <= 0) return await PremiumModal.alert('Monto inválido.');
+    
+    try {
+      const res = await fetch('/api/admin/finance/deposit/' + id, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('planif_token')
+        },
+        body: JSON.stringify({ amount })
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadFinanceData();
+      } else {
+        await PremiumModal.alert(data.error || 'Error al editar');
+      }
+    } catch (err) {
+      await PremiumModal.alert('Error de conexión');
+    }
+  };
+
+  loadFinanceData();
+};

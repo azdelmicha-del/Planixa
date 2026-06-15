@@ -1,0 +1,51 @@
+<div style="padding:20px; box-sizing:border-box; height:100%; display:flex; flex-direction:column; gap:20px;">
+  <h2 style="font-size:18px; font-weight:bold;">💰 Panel de Finanzas de IA</h2>
+  <p style="font-size:14px; color:var(--text-light); margin-bottom:10px;">
+    Controla tu presupuesto interno. Registra recargas manuales a tu cuenta y visualiza cómo la IA consume céntimos en tiempo real.
+  </p>
+
+  <div style="display:flex; flex-wrap:wrap; gap:20px;">
+    <!-- Billetera -->
+    <div style="background:var(--card); padding:20px; border-radius:12px; border:1px solid var(--border); flex:1; min-width:250px; text-align:center;">
+      <h3 style="font-size:14px; color:var(--text-light); margin-bottom:10px;">Saldo Disponible Estimado</h3>
+      <div id="financeBalance" style="font-size:36px; font-weight:bold; color:var(--primary);">$0.00</div>
+      <p style="font-size:12px; color:var(--text-muted); margin-top:5px;">En dólares (USD)</p>
+    </div>
+
+    <!-- Controles -->
+    <div style="background:var(--card); padding:20px; border-radius:12px; border:1px solid var(--border); flex:1; min-width:300px; display:flex; flex-direction:column; gap:15px; justify-content:center;">
+      <h3 style="font-size:14px; font-weight:bold;">Registrar nueva recarga</h3>
+      <div style="display:flex; gap:10px;">
+        <span style="display:flex; align-items:center; font-size:18px; font-weight:bold;">$</span>
+        <input type="number" id="financeDepositInput" placeholder="Ej. 10.00" step="0.01" min="0.01" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:16px;">
+        <button id="financeDepositBtn" style="padding:10px 20px; background:#10b981; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Recargar</button>
+      </div>
+      <a href="https://platform.openai.com/settings/organization/billing/overview" target="_blank" style="font-size:13px; color:var(--primary); text-decoration:underline;">Ir al Dashboard de Facturación de OpenAI</a>
+    </div>
+  </div>
+
+  <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+    <h3 style="font-size:16px; font-weight:bold;">Historial de Gastos (Últimas 100)</h3>
+    <button id="financeRefreshBtn" style="padding:6px 12px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:6px; cursor:pointer; font-size:12px;">🔄 Actualizar</button>
+  </div>
+
+  <div style="flex:1; background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+    <div style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+        <thead style="background:var(--bg-hover);">
+          <tr>
+            <th style="padding:12px 15px; border-bottom:1px solid var(--border);">Fecha y Hora</th>
+            <th style="padding:12px 15px; border-bottom:1px solid var(--border);">Usuario/Origen</th>
+            <th style="padding:12px 15px; border-bottom:1px solid var(--border);">Acción</th>
+            <th style="padding:12px 15px; border-bottom:1px solid var(--border);">Modelo</th>
+            <th style="padding:12px 15px; border-bottom:1px solid var(--border); text-align:right;">Total Tokens</th>
+            <th style="padding:12px 15px; border-bottom:1px solid var(--border); text-align:right;">Costo (USD)</th>
+          </tr>
+        </thead>
+        <tbody id="financeLogsTableBody">
+          <!-- Las filas se insertarán por JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

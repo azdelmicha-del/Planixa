@@ -1,5 +1,6 @@
 const { authenticateToken } = require('../middleware/auth');
 const { getDb } = require('../db');
+const { logApiUsage } = require('../finance');
 const fs = require('fs');
 const path = require('path');
 const PizZip = require('pizzip');
@@ -74,6 +75,7 @@ Responde ÚNICAMENTE con el ID del Especialista que mejor puede atender esta sol
                 
                 if (routerRes.ok) {
                     const rData = await routerRes.json();
+                    if (rData.usage) await logApiUsage(userId, 'Chat: Enrutador IA', 'gpt-4o-mini', rData.usage);
                     const chosenId = rData.choices?.[0]?.message?.content?.trim();
                     selectedPrompt = prompts.find(p => p._id.toString() === chosenId) || prompts[0];
                 } else {
@@ -110,6 +112,7 @@ Mensaje: "${message}"`;
 
                 if (fRes.ok) {
                     const fData = await fRes.json();
+                    if (fData.usage) await logApiUsage(userId, 'Chat: Clasificador Formato', 'gpt-4o-mini', fData.usage);
                     const chosenType = fData.choices?.[0]?.message?.content?.trim();
                     if (chosenType && chosenType !== "NINGUNO") {
                         const matchedFormat = formats.find(f => f.type.toLowerCase() === chosenType.toLowerCase());
@@ -169,6 +172,7 @@ Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el co
                 });
                 if (r.ok) {
                     const d = await r.json();
+                    if (d.usage) await logApiUsage(userId, 'Chat: Mensaje Principal', 'gpt-4o-mini', d.usage);
                     const t = d?.choices?.[0]?.message?.content?.trim();
                     if (t) reply = t;
                 }

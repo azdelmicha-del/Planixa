@@ -70,6 +70,7 @@
       <button class="nav-tab" data-tab="journal">📓 Diario</button>
       <button class="nav-tab" data-tab="competencias">🎯 Competencias</button>
       <button class="nav-tab" data-tab="supervisor" id="supervisorNavTab" style="display:none; color: #f59e0b;">👁️ Supervisor IA</button>
+      <button class="nav-tab" data-tab="finance" id="financeNavTab" style="display:none; color: #10b981;">💰 Finanzas</button>
       <button class="nav-tab" data-tab="evalSchedule">📅 Cronograma</button>
       </div>
     </div>
@@ -143,6 +144,7 @@
   <div id="journalPanel" class="panel-content" data-panel="journal"></div>
   <div id="competenciasPanel" class="panel-content" data-panel="competencias"></div>
   <div id="supervisorPanel" class="panel-content" data-panel="supervisor"></div>
+  <div id="financePanel" class="panel-content" data-panel="finance"></div>
   <div id="evalSchedulePanel" class="panel-content" data-panel="eval-schedule"></div>
 
       <!-- VOICE BUTTON (hidden until speech recognition loads) -->
@@ -180,8 +182,117 @@
 <!-- Modals Container -->
 <div id="modals-container"></div>
 
-  <script src="/public/js/admin.js?v=5"></script>
-  <script src="/public/js/app.js?v=13"></script>
+<style>
+/* Premium Modal Styles */
+.pm-overlay {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(5px);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 99999; opacity: 0; transition: opacity 0.3s ease;
+}
+.pm-overlay.pm-show { opacity: 1; }
+.pm-modal {
+  background: var(--card, #fff); color: var(--text, #333);
+  padding: 25px; border-radius: 16px; width: 90%; max-width: 400px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  transform: translateY(20px) scale(0.95); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid var(--border, #eee);
+  text-align: center;
+}
+.pm-overlay.pm-show .pm-modal { transform: translateY(0) scale(1); }
+.pm-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: var(--primary, #6366f1); }
+.pm-message { font-size: 15px; margin-bottom: 20px; line-height: 1.5; color: var(--text-light, #555); }
+.pm-input { 
+  width: 100%; padding: 12px; border: 1px solid var(--border, #ccc); 
+  border-radius: 8px; margin-bottom: 20px; font-size: 15px; 
+  background: var(--bg, #f9f9f9); color: var(--text, #333); box-sizing: border-box;
+}
+.pm-buttons { display: flex; gap: 10px; justify-content: center; }
+.pm-btn {
+  padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold;
+  cursor: pointer; font-size: 14px; transition: transform 0.1s, opacity 0.2s;
+}
+.pm-btn:active { transform: scale(0.95); }
+.pm-btn-primary { background: var(--primary, #6366f1); color: white; flex: 1; }
+.pm-btn-primary:hover { opacity: 0.9; }
+.pm-btn-secondary { background: var(--border, #e2e8f0); color: var(--text, #1e293b); flex: 1; }
+.pm-btn-secondary:hover { opacity: 0.8; background: var(--border, #e2e8f0); }
+</style>
+<script>
+window.PremiumModal = {
+  createOverlay() {
+    const overlay = document.createElement('div');
+    overlay.className = 'pm-overlay';
+    document.body.appendChild(overlay);
+    overlay.offsetHeight;
+    overlay.classList.add('pm-show');
+    return overlay;
+  },
+  removeOverlay(overlay) {
+    overlay.classList.remove('pm-show');
+    setTimeout(() => overlay.remove(), 300);
+  },
+  alert(message) {
+    return new Promise(resolve => {
+      const overlay = this.createOverlay();
+      overlay.innerHTML = `
+        <div class="pm-modal">
+          <div class="pm-title">Sistema</div>
+          <div class="pm-message">${message}</div>
+          <div class="pm-buttons">
+            <button class="pm-btn pm-btn-primary" id="pm-ok">Aceptar</button>
+          </div>
+        </div>
+      `;
+      const btn = overlay.querySelector('#pm-ok');
+      btn.focus();
+      btn.onclick = () => { this.removeOverlay(overlay); resolve(); };
+    });
+  },
+  confirm(message) {
+    return new Promise(resolve => {
+      const overlay = this.createOverlay();
+      overlay.innerHTML = `
+        <div class="pm-modal">
+          <div class="pm-title">Confirmación</div>
+          <div class="pm-message">${message}</div>
+          <div class="pm-buttons">
+            <button class="pm-btn pm-btn-secondary" id="pm-cancel">Cancelar</button>
+            <button class="pm-btn pm-btn-primary" id="pm-ok">Confirmar</button>
+          </div>
+        </div>
+      `;
+      overlay.querySelector('#pm-cancel').onclick = () => { this.removeOverlay(overlay); resolve(false); };
+      overlay.querySelector('#pm-ok').onclick = () => { this.removeOverlay(overlay); resolve(true); };
+    });
+  },
+  prompt(message, defaultValue = '') {
+    return new Promise(resolve => {
+      const overlay = this.createOverlay();
+      overlay.innerHTML = `
+        <div class="pm-modal">
+          <div class="pm-title">Entrada requerida</div>
+          <div class="pm-message">${message}</div>
+          <input type="text" class="pm-input" id="pm-input" value="${defaultValue}" />
+          <div class="pm-buttons">
+            <button class="pm-btn pm-btn-secondary" id="pm-cancel">Cancelar</button>
+            <button class="pm-btn pm-btn-primary" id="pm-ok">Aceptar</button>
+          </div>
+        </div>
+      `;
+      const input = overlay.querySelector('#pm-input');
+      input.focus();
+      input.select();
+      overlay.querySelector('#pm-cancel').onclick = () => { this.removeOverlay(overlay); resolve(null); };
+      overlay.querySelector('#pm-ok').onclick = () => { this.removeOverlay(overlay); resolve(input.value); };
+      input.onkeydown = (e) => { if (e.key === 'Enter') overlay.querySelector('#pm-ok').click(); if (e.key === 'Escape') overlay.querySelector('#pm-cancel').click(); };
+    });
+  }
+};
+</script>
+
+  <script src="/public/js/admin.js?v=6"></script>
+  <script src="/public/js/app.js?v=14"></script>
 </body>
 </html>
 

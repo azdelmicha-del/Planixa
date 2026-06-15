@@ -4,6 +4,7 @@ const { getDb } = require('../db');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const { logApiUsage } = require('../finance');
 
 // Configure multer storage
 const storage = multer.diskStorage({
@@ -164,6 +165,8 @@ ${recentMessagesText || 'No hay mensajes recientes.'}
             const data = await response.json();
             if (!response.ok) throw new Error(data.error?.message || 'Error en OpenAI');
             
+            if (data.usage) await logApiUsage(req.userId, 'Admin: Asistente SaaS', 'gpt-4o', data.usage);
+            
             if (!data.choices || !data.choices[0] || !data.choices[0].message) {
                 console.error("OpenAI no devolvió texto válido:", JSON.stringify(data));
                 return res.json({ response: "Lo siento, la IA no devolvió una respuesta válida." });
@@ -180,21 +183,142 @@ ${recentMessagesText || 'No hay mensajes recientes.'}
         try {
             const db = getDb();
             const totalUsers = await db.collection('users').countDocuments();
-            const activeUsers = await db.collection('users').countDocuments({ plan: { $ne: 'free' } });
+            const now = new Date();
             const totalConversations = await db.collection('conversations').countDocuments();
             
-            // Simple logic for new users in last 7 days
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
             const recentUsers = await db.collection('users').countDocuments({ created_at: { $gte: sevenDaysAgo } });
 
+            const planPrices = {
+                'trial': 0,
+                '1_week': 60,
+                '1_month': 190,
+                '3_months': 500,
+                '6_months': 900,
+                '1_year': 1500,
+                'lifetime': 0
+            };
+
+            const allUsers = await db.collection('users').find({}).toArray();
+            let proUsersCount = 0;
+            let freeUsersCount = 0;
+            let exemptUsersCount = 0;
+            let adminUsersCount = 0;
+            let mrr = 0;
+
+            allUsers.forEach(u => {
+                if (u.is_admin) {
+                    adminUsersCount++;
+                } else if (u.plan === 'exempt') {
+                    exemptUsersCount++;
+                } else if (u.plan === 'free' || !u.plan) {
+                    freeUsersCount++;
+                } else {
+                    let isActivePro = false;
+                    if (u.plan === 'lifetime') isActivePro = true;
+                    else if (u.plan_expires && new Date(u.plan_expires) > now) isActivePro = true;
+                    
+                    if (isActivePro) {
+                        proUsersCount++;
+                        if (u.plan !== 'lifetime' && u.plan !== 'trial') {
+                            mrr += (planPrices[u.plan] || 190);
+                        }
+                    } else {
+                        freeUsersCount++; // Expirados cuentan como gratis
+                    }
+                }
+            });
+
             res.json({
-                totalUsers,
-                activeUsers,
+                totalUsers: allUsers.length,
+                activeUsers: proUsersCount,
+                freeUsersCount,
+                exemptUsersCount,
+                adminUsersCount,
                 totalConversations,
                 recentUsers,
-                mrr: activeUsers * 15 // Assuming $15 avg per paid user
+                mrr: mrr
             });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    // --- FINANZAS ---
+    app.get('/api/admin/finance', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
+        try {
+            const db = getDb();
+            const settings = await db.collection('settings').findOne({ _id: 'general' });
+            const balance = settings?.api_balance || 0;
+            const logs = await db.collection('api_usage').find({}).sort({ date: -1 }).limit(100).toArray();
+            res.json({ balance, logs });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.post('/api/admin/finance/deposit', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
+        try {
+            const amount = parseFloat(req.body.amount);
+            if (isNaN(amount) || amount <= 0) return res.status(400).json({ error: 'Monto inválido' });
+            
+            const db = getDb();
+            await db.collection('settings').updateOne(
+                { _id: 'general' },
+                { $inc: { api_balance: amount } },
+                { upsert: true }
+            );
+
+            // Log de recarga
+            await db.collection('api_usage').insertOne({
+                date: new Date(),
+                identifier: 'Admin',
+                action: 'Recarga de Saldo (Depósito)',
+                model: 'N/A',
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+                cost: 0, // 0 porque no es un gasto, el deposito suma al balance.
+                deposit: amount
+            });
+
+            res.json({ success: true, added: amount });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.put('/api/admin/finance/deposit/:id', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
+        try {
+            const newAmount = parseFloat(req.body.amount);
+            if (isNaN(newAmount) || newAmount <= 0) return res.status(400).json({ error: 'Monto inválido' });
+            
+            const db = getDb();
+            const logId = new mongoose.Types.ObjectId(req.params.id);
+            const existingLog = await db.collection('api_usage').findOne({ _id: logId, deposit: { $exists: true } });
+            
+            if (!existingLog) return res.status(404).json({ error: 'Recarga no encontrada' });
+            
+            const diff = newAmount - existingLog.deposit;
+            
+            // Actualizar log
+            await db.collection('api_usage').updateOne(
+                { _id: logId },
+                { $set: { deposit: newAmount } }
+            );
+
+            // Actualizar balance global con la diferencia
+            await db.collection('settings').updateOne(
+                { _id: 'general' },
+                { $inc: { api_balance: diff } },
+                { upsert: true }
+            );
+
+            res.json({ success: true });
         } catch (err) {
             res.status(500).json({ error: err.message });
         }

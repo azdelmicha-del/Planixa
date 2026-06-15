@@ -103,11 +103,13 @@ async function enterApp() {
   updateSidebarUser();
   if (currentUser.is_admin) {
     if ($('adminPanelBtn')) $('adminPanelBtn').style.display = 'inline-flex';
-      if ($('adminNavTab')) {
-        $('adminNavTab').style.display = 'inline-block';
-        if ($('supervisorNavTab')) $('supervisorNavTab').style.display = 'inline-block';
-        document.querySelectorAll('.nav-tab').forEach(t => {
-        const allowed = ['admin', 'supervisor'];
+    if ($('adminNavTab')) {
+      $('adminNavTab').style.display = 'inline-block';
+      if ($('supervisorNavTab')) $('supervisorNavTab').style.display = 'inline-block';
+      if ($('financeNavTab')) $('financeNavTab').style.display = 'inline-block';
+      
+      document.querySelectorAll('.nav-tab').forEach(t => {
+        const allowed = ['admin', 'supervisor', 'finance'];
         if (!allowed.includes(t.dataset.tab)) t.style.display = 'none';
       });
       if ($('topNewBtn')) $('topNewBtn').style.display = 'none';
@@ -221,7 +223,7 @@ async function loadConversations() {
   list.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      if (!confirm('¿Eliminar esta planificación?')) return;
+      if (!(await PremiumModal.confirm)('¿Eliminar esta planificación?')) return;
       await api('DELETE', '/api/conversations/' + btn.dataset.id);
       if (currentConversationId === btn.dataset.id) {
         currentConversationId = null;
@@ -612,7 +614,7 @@ on("convSearch", "input", function() {
 /* ── RENAME CONVERSATION ── */
 on("chatTitle", "dblclick", async function() {
   if (!currentConversationId) return;
-  const newTitle = prompt('Nuevo título:', this.textContent);
+  const newTitle = await PremiumModal.prompt('Nuevo título:', this.textContent);
   if (!newTitle || newTitle.trim() === this.textContent) return;
   const res = await api('PUT', '/api/conversations/' + currentConversationId, { title: newTitle.trim() });
   if (res.success) {
@@ -658,11 +660,12 @@ async function loadPanelContent(id) {
   if (!el || el.getAttribute('data-panel') === null) return;
   const name = el.dataset.panel;
   try {
-    const r = await fetch('/public/panels/' + name + '.html');
+    const r = await fetch('/public/panels/' + name + '.html?v=' + Date.now());
     if (!r.ok) return;
     el.innerHTML = await r.text();
     panelCache.add(id);
     if (name === 'admin' && typeof initAdminPanel === 'function') initAdminPanel();
+    if (name === 'finance' && typeof initFinancePanel === 'function') initFinancePanel();
   } catch (e) { /* panel file not available */ }
 }
 
@@ -678,7 +681,7 @@ async function switchTab(tab) {
     t.style.fontWeight = '';
     t.style.borderBottomColor = '';
   });
-  const panels = ['chat-main', 'adminPanel', 'calendarPanel', 'templatesPanel', 'studentsPanel', 'schedulePanel', 'annualPanel', 'statsPanel', 'remindersPanel', 'customTemplatesPanel', 'journalPanel', 'competenciasPanel', 'clientsPanel', 'supervisorPanel', 'evalSchedulePanel'];
+  const panels = ['chat-main', 'adminPanel', 'calendarPanel', 'templatesPanel', 'studentsPanel', 'schedulePanel', 'annualPanel', 'statsPanel', 'remindersPanel', 'customTemplatesPanel', 'journalPanel', 'competenciasPanel', 'clientsPanel', 'supervisorPanel', 'financePanel', 'evalSchedulePanel'];
   const tabLower = tab.toLowerCase();
   for (const id of panels) {
     const el = $(id);
@@ -687,7 +690,7 @@ async function switchTab(tab) {
     el.classList.remove('active-panel');
     if (id === 'chat-main') continue;
   }
-  if (tab === 'admin' || tab === 'supervisor') {
+  if (tab === 'admin' || tab === 'supervisor' || tab === 'finance') {
     const side = $('aiChatSidepanel'); if (side) side.style.display = 'none';
     const voiceBtn = $('voiceBtn'); if (voiceBtn) voiceBtn.style.display = 'none';
   } else {
@@ -838,7 +841,7 @@ async function loadStudents() {
   });
   list.querySelectorAll('.stud-notify').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const msg = prompt('Mensaje para el padre de ' + btn.dataset.name + ' (' + btn.dataset.phone + '):', 'Saludos, le informamos sobre el progreso académico de su hijo/a.');
+      const msg = await PremiumModal.prompt('Mensaje para el padre de ' + btn.dataset.name + ' (' + btn.dataset.phone + '):', 'Saludos, le informamos sobre el progreso académico de su hijo/a.');
       if (!msg) return;
       const res = await api('POST', '/api/notify-parent', { studentId: btn.dataset.id, message: msg });
       showToast(res.sent ? 'Mensaje enviado' : (res.message || 'Simulado (sin WA configurado)'), res.sent ? 'success' : 'error');
@@ -852,7 +855,7 @@ async function loadStudents() {
   });
   list.querySelectorAll('.stud-del').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm(`¿Eliminar a ${btn.dataset.name}?`)) return;
+      if (!(await PremiumModal.confirm)(`¿Eliminar a ${btn.dataset.name}?`)) return;
       await api('DELETE', '/api/students/' + btn.dataset.id);
       loadStudents();
       showToast('Estudiante eliminado', 'success');
@@ -1353,7 +1356,7 @@ async function checkPin() {
   if (user.id && user.plan === 'free') return;
 }
 async function savePin() {
-  const pin = prompt('Configura un PIN de 4 dígitos (deja vacío para eliminar):');
+  const pin = await PremiumModal.prompt('Configura un PIN de 4 dígitos (deja vacío para eliminar):');
   if (pin === null) return;
   if (pin && pin.length !== 4) { showToast('El PIN debe ser de 4 dígitos', 'error'); return; }
   const res = await api('PUT', '/api/user/pin', { pin });

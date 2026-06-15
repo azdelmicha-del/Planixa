@@ -6,6 +6,7 @@ const path = require('path');
 const PDFDocument = require('pdfkit');
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
+const { logApiUsage } = require('../finance');
 const { callSupervisor } = require('../utils/supervisor');
 
 const WA_VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN || 'elprofe2_verify_2026';
@@ -84,6 +85,7 @@ module.exports = function (app) {
                     });
                     if (r.ok) {
                         const d = await r.json();
+                        if (d.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Extraer Nombre', 'gpt-4o-mini', d.usage);
                         const parsedStr = d.choices[0].message.content.trim();
                         const jsonMatch = parsedStr.match(/\{[\s\S]*?\}/);
                         if (jsonMatch) {
@@ -156,6 +158,7 @@ Responde ÚNICAMENTE con el ID del Especialista que mejor puede atender esta sol
                     
                     if (routerRes.ok) {
                         const rData = await routerRes.json();
+                        if (rData.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Enrutador IA', 'gpt-4o-mini', rData.usage);
                         const chosenId = rData.choices?.[0]?.message?.content?.trim();
                         selectedPrompt = prompts.find(p => p._id.toString() === chosenId) || prompts[0];
                     } else {
@@ -202,6 +205,7 @@ Mensaje: "${text}"`;
 
                     if (fRes.ok) {
                         const fData = await fRes.json();
+                        if (fData.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Clasificador Formato', 'gpt-4o-mini', fData.usage);
                         const chosenType = fData.choices?.[0]?.message?.content?.trim();
                         if (chosenType && chosenType !== "NINGUNO") {
                             const matchedFormat = formats.find(f => f.type.toLowerCase() === chosenType.toLowerCase());
@@ -257,6 +261,7 @@ Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el co
                 });
                 if (r.ok) {
                     const d = await r.json();
+                    if (d.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Mensaje Principal', 'gpt-4o-mini', d.usage);
                     const t = d?.choices?.[0]?.message?.content?.trim();
                     if (t) reply = t;
                 }
