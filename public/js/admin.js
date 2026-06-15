@@ -334,8 +334,14 @@ function renderAdminFormats() {
     card.style.borderRadius = '8px';
     card.style.cursor = 'pointer';
     card.innerHTML = `
-      <h4 style="margin:0 0 5px 0;">${f.type}</h4>
-      <p style="font-size:12px; color:var(--text-light); margin:0;">${f.fileName || 'Plantilla.docx'}</p>
+      <div style="flex:1;">
+        <h4 style="margin:0 0 5px 0;">${f.type}</h4>
+        <p style="font-size:12px; color:var(--text-light); margin:0;">${f.fileName || 'Plantilla.docx'}</p>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button onclick="event.stopPropagation(); openFormatModal(${JSON.stringify(f).replace(/"/g, '&quot;')})" style="background:rgba(255,255,255,0.1); color:var(--text); border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px; flex:1;">Editar</button>
+        <button onclick="event.stopPropagation(); window.deleteAdminFormatById('${f.id}')" style="background:rgba(239, 68, 68, 0.2); color:#fca5a5; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px; flex:1;">Eliminar</button>
+      </div>
     `;
     card.onclick = () => openFormatModal(f);
     list.appendChild(card);
@@ -414,6 +420,23 @@ async function deleteAdminFormat() {
   } catch (err) { console.error(err); }
 }
 
+window.deleteAdminFormatById = async function(id) {
+  if (!id) return;
+  if (typeof PremiumModal !== 'undefined') {
+    if (!(await PremiumModal.confirm('¿Seguro que deseas eliminar este formato?'))) return;
+  } else {
+    if (!confirm('¿Seguro que deseas eliminar este formato?')) return;
+  }
+  try {
+    const res = await fetch('/api/admin/formats/' + id, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') }
+    });
+    if (res.ok) {
+      loadAdminFormats();
+    }
+  } catch (err) { console.error(err); }
+};
 
 window.deleteAdminUser = async function(id) {
   if (!(await PremiumModal.confirm)('¿Seguro que deseas eliminar a este usuario por completo? Se borrarán sus conversaciones también.')) return;
