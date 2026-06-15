@@ -107,7 +107,6 @@ async function enterApp() {
         $('adminNavTab').style.display = 'inline-block';
         if ($('clientsNavTab')) $('clientsNavTab').style.display = 'inline-block';
         if ($('supervisorNavTab')) $('supervisorNavTab').style.display = 'inline-block';
-        document.querySelectorAll('.admin-sub-tab').forEach(el => el.style.display = 'inline-block');
         document.querySelectorAll('.nav-tab').forEach(t => {
         const allowed = ['admin', 'clients', 'supervisor'];
         if (!allowed.includes(t.dataset.tab)) t.style.display = 'none';
@@ -725,25 +724,7 @@ async function switchTab(tab) {
   if (tab === 'evalSchedule') loadEvalSchedule();
 }
 document.querySelectorAll('.nav-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    if (tab.dataset.adminView) {
-      switchTab('admin');
-      setTimeout(() => {
-        const map = {
-          'dash': 'adminTabDash',
-          'users': 'adminTabUsers',
-          'manage': 'adminTabManage',
-          'broadcast': 'adminTabBroadcast',
-          'config': 'adminTabConfig',
-          'formats': 'adminTabFormats'
-        };
-        const targetBtn = document.getElementById(map[tab.dataset.adminView]);
-        if (targetBtn) targetBtn.click();
-      }, 50); // slight delay to ensure admin panel content is loaded
-    } else {
-      switchTab(tab.dataset.tab);
-    }
-  });
+  tab.addEventListener('click', () => switchTab(tab.dataset.tab));
 });
 
 /* ── CALENDAR ── */

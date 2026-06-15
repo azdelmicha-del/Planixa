@@ -1,17 +1,22 @@
-    <div class="admin-layout" style="display:flex; height:100%; gap:15px; padding:15px; box-sizing:border-box;">
+    <div class="admin-layout" style="display:flex; flex-direction:column; height:100%; gap:15px; padding:15px; box-sizing:border-box;">
+      
+      <!-- Top Horizontal Menu -->
+      <div id="adminTopMenu" style="display:flex; flex-wrap:wrap; gap:10px; padding:10px 15px; background:var(--bg); border:1px solid var(--border); border-radius:12px;">
+        <button id="adminTabDash" style="flex:1; padding:8px 15px; font-size:13px; font-weight:600; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer; min-width:120px;">📊 Dashboard</button>
+        <button id="adminTabUsers" style="flex:1; padding:8px 15px; font-size:13px; font-weight:600; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:6px; cursor:pointer; min-width:120px;">👀 Monitoreo</button>
+        <button id="adminTabManage" style="flex:1; padding:8px 15px; font-size:13px; font-weight:600; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:6px; cursor:pointer; min-width:120px;">👥 Gestión</button>
+        <button id="adminTabBroadcast" style="flex:1; padding:8px 15px; font-size:13px; font-weight:600; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:6px; cursor:pointer; min-width:120px;">📢 Difusión</button>
+        <button id="adminTabConfig" style="flex:1; padding:8px 15px; font-size:13px; font-weight:600; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:6px; cursor:pointer; min-width:120px;">⚙️ Config IA</button>
+        <button id="adminTabFormats" style="flex:1; padding:8px 15px; font-size:13px; font-weight:600; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:6px; cursor:pointer; min-width:120px;">📝 Formatos DOC</button>
+      </div>
+
+      <!-- 3 Columns Wrapper -->
+      <div style="display:flex; flex:1; gap:15px; overflow:hidden;">
       <!-- Col 1: Clientes y Configs -->
       <div class="admin-col-1" style="width: 25%; min-width: 250px; background:var(--bg); border:1px solid var(--border); border-radius:12px; display:flex; flex-direction:column; overflow:hidden;">
         <div style="padding:15px; border-bottom:1px solid var(--border); font-weight:bold;">⚙️ Admin SaaS</div>
         <div style="padding:10px;">
           <input type="text" id="adminSearchUsers" placeholder="🔍 Buscar cliente..." style="width:100%; padding:8px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); box-sizing:border-box;">
-        </div>
-        <div id="adminInnerMenu" style="display:none; flex-wrap:wrap; gap:5px; padding:0 10px 10px;">
-          <button id="adminTabDash" style="flex:1; padding:5px; font-size:12px; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">Dashboard</button>
-          <button id="adminTabUsers" style="flex:1; padding:5px; font-size:12px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:4px; cursor:pointer;">Monitoreo</button>
-          <button id="adminTabManage" style="flex:1; padding:5px; font-size:12px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:4px; cursor:pointer;">Gestión</button>
-          <button id="adminTabBroadcast" style="flex:1; padding:5px; font-size:12px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:4px; cursor:pointer;">Difusión</button>
-          <button id="adminTabConfig" style="flex:1; padding:5px; font-size:12px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:4px; cursor:pointer;">Config IA</button>
-          <button id="adminTabFormats" style="flex:1; padding:5px; font-size:12px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:4px; cursor:pointer;">Formatos DOC</button>
         </div>
         <div id="adminUserList" style="flex:1; overflow-y:auto; padding:0 10px 10px; display:flex; flex-direction:column; gap:5px;"></div>
       </div>
