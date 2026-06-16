@@ -455,8 +455,6 @@ window.deleteAdminUser = async function(id) {
   } catch(e) { console.error(e); }
 }
 
-}
-
 async function loadAdminUserChat(userId) {
   const view = document.getElementById('adminChatView');
   view.innerHTML = '<div style="text-align:center; margin-top:20px;">Cargando chat...</div>';
