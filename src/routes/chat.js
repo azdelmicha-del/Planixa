@@ -158,7 +158,7 @@ Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el co
             if (knowledgeItems && knowledgeItems.length > 0) {
                 globalKnowledgeBlock = '\n\n📚 BASE DE CONOCIMIENTOS OFICIAL (REGLAS Y DATOS GLOBALES OBLIGATORIOS):\n';
                 for (const item of knowledgeItems) {
-                    globalKnowledgeBlock += `\n[CATEGORÍA: ${item.category}] - ${item.title}:\n${item.content}\n---\n`;
+                    globalKnowledgeBlock += `\n[${item.title}]:\n${item.content}\n---\n`;
                 }
                 globalKnowledgeBlock += 'USA ESTA BASE DE CONOCIMIENTOS COMO VERDAD ABSOLUTA para responder.\n';
             }

@@ -511,16 +511,16 @@ Si no pide un PDF explícitamente, responde normalmente.`;
         if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
         try {
             const items = await getDb().collection('knowledge').find({}).sort({ created_at: -1 }).toArray();
-            res.json({ items: items.map(i => ({ id: i._id.toString(), title: i.title, category: i.category, content: i.content, created_at: i.created_at })) });
+            res.json({ items: items.map(i => ({ id: i._id.toString(), title: i.title, content: i.content, created_at: i.created_at })) });
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
     app.post('/api/admin/knowledge', authenticateToken, async (req, res) => {
         if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
         try {
-            const { title, category, content } = req.body;
+            const { title, content } = req.body;
             if (!title || !content) return res.status(400).json({ error: 'Título y Contenido son requeridos' });
-            const result = await getDb().collection('knowledge').insertOne({ title, category: category || 'General', content, created_at: new Date() });
+            const result = await getDb().collection('knowledge').insertOne({ title, content, created_at: new Date() });
             res.json({ success: true, id: result.insertedId });
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
@@ -529,9 +529,9 @@ Si no pide un PDF explícitamente, responde normalmente.`;
         if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
         try {
             const _id = new mongoose.Types.ObjectId(req.params.id);
-            const { title, category, content } = req.body;
+            const { title, content } = req.body;
             if (!title || !content) return res.status(400).json({ error: 'Título y Contenido son requeridos' });
-            await getDb().collection('knowledge').updateOne({ _id }, { $set: { title, category, content, updated_at: new Date() } });
+            await getDb().collection('knowledge').updateOne({ _id }, { $set: { title, content, updated_at: new Date() } });
             res.json({ success: true });
         } catch (err) { res.status(500).json({ error: err.message }); }
     });

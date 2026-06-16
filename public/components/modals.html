@@ -359,3 +359,22 @@
     </div>
   </div>
 </div>
+
+<div id="knowledgeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:var(--bg); padding:20px; border-radius:12px; width:500px; max-height:90vh; overflow-y:auto; max-width:90%;">
+    <h3 id="knowledgeModalTitle">Nuevo Conocimiento</h3>
+    <input type="hidden" id="kId">
+    <div style="margin-top:15px;">
+      <label style="display:block; margin-bottom:5px; font-size:13px; font-weight:bold;">Título</label>
+      <input type="text" id="kTitle" placeholder="Ej: Reglamento Escolar 2026" style="width:100%; padding:8px; border-radius:6px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border);">
+    </div>
+    <div style="margin-top:15px;">
+      <label style="display:block; margin-bottom:5px; font-size:13px; font-weight:bold;">Contenido (Verdad Absoluta)</label>
+      <textarea id="kContent" rows="8" placeholder="Pega la información aquí..." style="width:100%; padding:8px; border-radius:6px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); font-size:13px; resize:vertical;"></textarea>
+    </div>
+    <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+      <button onclick="window.closeKnowledgeModal()" style="padding:8px 15px; border-radius:6px; background:transparent; color:var(--text); border:1px solid var(--border); cursor:pointer;">Cancelar</button>
+      <button onclick="window.saveKnowledge()" style="padding:8px 15px; border-radius:6px; background:var(--primary); color:white; border:none; cursor:pointer;">Guardar</button>
+    </div>
+  </div>
+</div>

@@ -874,7 +874,6 @@ window.loadKnowledgeItems = async function() {
       <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:15px; display:flex; justify-content:space-between; align-items:flex-start;">
         <div style="flex:1; overflow:hidden;">
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
-            <span style="font-size:10px; padding:3px 8px; background:rgba(139, 92, 246, 0.2); color:#c4b5fd; border-radius:12px; font-weight:bold; text-transform:uppercase;">${k.category || 'General'}</span>
             <h4 style="font-size:15px; margin:0; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${k.title}</h4>
           </div>
           <p style="font-size:12px; color:var(--text-muted); margin:0; margin-top:8px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
@@ -896,7 +895,6 @@ window.loadKnowledgeItems = async function() {
 window.openKnowledgeModal = function() {
   document.getElementById('kId').value = '';
   document.getElementById('kTitle').value = '';
-  document.getElementById('kCategory').value = '';
   document.getElementById('kContent').value = '';
   document.getElementById('knowledgeModalTitle').textContent = 'Nuevo Conocimiento';
   document.getElementById('knowledgeModal').style.display = 'flex';
@@ -910,9 +908,8 @@ window.editKnowledge = function(id) {
   const k = allKnowledge.find(x => x.id === id);
   if (!k) return;
   document.getElementById('kId').value = k.id;
-  document.getElementById('kTitle').value = k.title;
-  document.getElementById('kCategory').value = k.category;
-  document.getElementById('kContent').value = k.content;
+  document.getElementById('kTitle').value = k.title || '';
+  document.getElementById('kContent').value = k.content || '';
   document.getElementById('knowledgeModalTitle').textContent = 'Editar Conocimiento';
   document.getElementById('knowledgeModal').style.display = 'flex';
 };
@@ -920,7 +917,6 @@ window.editKnowledge = function(id) {
 window.saveKnowledge = async function() {
   const id = document.getElementById('kId').value;
   const title = document.getElementById('kTitle').value.trim();
-  const category = document.getElementById('kCategory').value.trim();
   const content = document.getElementById('kContent').value.trim();
   
   if (!title || !content) {
@@ -931,9 +927,9 @@ window.saveKnowledge = async function() {
   
   try {
     if (id) {
-      await api('PUT', '/api/admin/knowledge/' + id, { title, category, content });
+      await api('PUT', '/api/admin/knowledge/' + id, { title, content });
     } else {
-      await api('POST', '/api/admin/knowledge', { title, category, content });
+      await api('POST', '/api/admin/knowledge', { title, content });
     }
     window.closeKnowledgeModal();
     window.loadKnowledgeItems();
