@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Planixa - Planificación Docente MINERD</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
+<title>Planixa Asistente | Admin SaaS</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -15,7 +16,7 @@
 
 <div id="authOverlay">
   <div class="auth-box">
-    <h1>📋 Planixa</h1>
+    <h1>📋 Planixa Asistente</h1>
     <p>Tu asistente de planificación docente<br>Ministerio de Educación RD</p>
     <div class="auth-tabs">
       <button class="auth-tab active" data-tab="login">Iniciar sesión</button>
@@ -52,7 +53,7 @@
   <div class="main-nav" id="mainNav" style="display:flex; flex-direction:column; justify-content:space-between;">
     <div style="flex:1; overflow-y:auto;">
       <div class="nav-brand" style="display:flex; justify-content:space-between; align-items:center;">
-        <span>EP2</span>
+        <span style="display:flex; align-items:center;"><img src="/favicon.ico" style="width:24px; height:24px; margin-right:8px; object-fit:contain;" /> Planixa</span>
         <button id="darkToggleAdmin" title="Modo oscuro" style="background:none;border:none;font-size:16px;cursor:pointer;line-height:1;display:none;color:inherit;">🌙</button>
       </div>
       <div class="nav-menu" id="navRow">
@@ -84,7 +85,12 @@
   <!-- Col 2: Sidebar (Historial y Perfil) -->
   <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <h2>📋 Planixa</h2>
+      <div class="logo-area">
+        <div class="logo-icon">
+          <img src="/favicon.ico" alt="Planixa Logo" style="width:100%; height:100%; object-fit:contain;" />
+        </div>
+        <h2 style="margin:0; font-size:18px;">Planixa<br><span style="font-size:12px; font-weight:400; color:var(--text-muted);">SaaS Administrativo</span></h2>
+      </div>
       <div style="display:flex;gap:6px;">
         <button id="darkToggle" title="Modo oscuro" style="background:none;border:none;font-size:16px;cursor:pointer;line-height:1;">🌙</button>
         <button id="closeSidebar" title="Cerrar">&times;</button>
@@ -117,7 +123,7 @@
       <div class="app-header">
         <div class="header-row">
           <button class="menu-btn" id="menuBtn">&#9776;</button>
-          <span class="chat-title" id="chatTitle">Planixa</span>
+          <span class="chat-title" id="chatTitle">Planixa Asistente</span>
           <div class="header-actions" id="headerActions">
             <button class="pdf-btn" id="pdfEnhancedBtn" style="background:#7c3aed;display:none;">&#128196; PDF+</button>
             <button class="pdf-btn" id="pdfBtn" style="background:var(--accent);display:none;">&#128196; PDF</button>
@@ -146,6 +152,13 @@
   <div id="supervisorPanel" class="panel-content" data-panel="supervisor"></div>
   <div id="financePanel" class="panel-content" data-panel="finance"></div>
   <div id="evalSchedulePanel" class="panel-content" data-panel="eval-schedule"></div>
+
+  <div id="topLogoHeader" style="position:fixed; top:20px; left:50%; transform:translateX(-50%); text-align:center; z-index:900; display:none;">
+    <div style="font-size:24px; font-weight:bold; background:var(--primary); width:50px; height:50px; line-height:50px; border-radius:12px; margin:0 auto; color:white; box-shadow:0 4px 15px rgba(56,189,248,0.3);">
+      <img src="/favicon.ico" alt="P" style="width:30px; margin-top:10px;" />
+    </div>
+    <h3 style="margin:10px 0 0 0; color:var(--text); font-size:16px;">Planixa Asistente</h3>
+  </div>
 
       <!-- VOICE BUTTON (hidden until speech recognition loads) -->
       <button id="voiceBtn" style="display:none;position:fixed;bottom:90px;right:20px;z-index:50;width:48px;height:48px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:20px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);">🎤</button>

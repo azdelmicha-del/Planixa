@@ -46,6 +46,7 @@ app.use('/chat', chatLimiter);
 
 /* ── STATIC ── */
 app.get('/', (_req, res) => res.sendFile(path.join(PROJECT_ROOT, 'index.html')));
+app.get('/portal', (_req, res) => res.sendFile(path.join(PROJECT_ROOT, 'public', 'portal.html')));
 
 /* ── ROUTES ── */
 require('./routes/auth')(app);
@@ -75,6 +76,7 @@ require('./routes/share')(app);
 require('./routes/import')(app);
 require('./routes/versions')(app);
 require('./routes/calendar')(app);
+require('./routes/portal')(app);
 
 /* ── START ── */
 async function start() {

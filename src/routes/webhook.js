@@ -93,8 +93,8 @@ module.exports = function (app) {
                 const result = await getDb().collection('users').insertOne({ phone: from, password: hashed, name: '', grade: '', area: '', school: '', role: 'teacher', is_admin: false, plan: 'trial', plan_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), plans_count: 0, created_at: new Date() });
                 userId = result.insertedId.toString();
                 user = await getDb().collection('users').findOne({ _id: new mongoose.Types.ObjectId(userId) });
-                const welcomeReply = '¡Hola, profe! \n\nA partir de hoy voy a ser tu asistente de planificaciones.\n\nPuedo ayudarte a crear unidades, secuencias, planificaciones diarias, rúbricas, listas de cotejo, evaluaciones y actividades.\n\nAntes de empezar, cuéntame:\n📌 ¿Cuál es tu nombre?\n📌 ¿Qué grado y área trabajas normalmente?\n\nAsí puedo guardar tus planificaciones organizadas y adaptadas a ti.';
-                await sendWhatsAppMessage(from, welcomeReply);
+                const welcomeReply = '¡Hola, profe! 🤖 \n\nA partir de hoy voy a ser tu **Planixa Asistente**.\n\nPuedo ayudarte a crear unidades, secuencias, planificaciones diarias, rúbricas, evaluaciones y mucho más.\n\nAntes de empezar, cuéntame:\n📌 ¿Cuál es tu nombre?\n📌 ¿Qué grado y área trabajas normalmente?';
+                await sendWhatsAppButtons(from, welcomeReply, ['¡Hola! 👋', 'Ver mis planes 📂']);
                 return;
             }
             userId = user._id.toString();
@@ -110,11 +110,11 @@ module.exports = function (app) {
                 const isTrial = user.plan === 'trial';
                 
                 let blockReason = null;
-                if (!expires || expires < now) blockReason = isTrial ? 'Tu período de prueba de 3 días ha finalizado. 😔' : 'Tu membresía ha expirado. 😔';
-                else if (currentCount >= maxPlans) blockReason = isTrial ? `Has alcanzado el límite de ${maxPlans} planificaciones gratuitas. 😔` : `Has alcanzado el límite de ${maxPlans} planificaciones en tu plan. 😔`;
+                if (!expires || expires < now) blockReason = isTrial ? 'Tu período de prueba de 3 días ha finalizado. 😔' : 'Tu plan ha expirado. 😔';
+                else if (currentCount >= maxPlans) blockReason = 'Has alcanzado el límite de planificaciones de tu plan actual. 😔';
 
                 if (blockReason) {
-                    const payMsg = `Hola profe. ${blockReason}\n\nPara seguir ahorrando horas de trabajo con mis planificaciones automáticas, por favor renueva tu plan:\n\n⭐ 1 Sem: $150 DOP (10 planes)\n⭐ 1 Mes: $395 DOP (60 planes)\n⭐ 3 Meses: $1,066 DOP (-10%)\n⭐ 6 Meses: $2,014 DOP (-15%)\n⭐ 1 Año: $3,792 DOP (-20%)\n\n💳 Para pagar mediante transferencia bancaria (Banreservas/Popular) o PayPal, escríbenos a este mismo número para enviarte los datos.\n\nEn cuanto envíes el comprobante activaremos tu cuenta de inmediato. ¡Te espero!`;
+                    const payMsg = `Hola profe. ${blockReason}\n\nPara seguir ahorrando horas de trabajo con **Planixa Asistente**, renueva tu acceso:\n\n💳 **Azul / CardNet:** [Aquí tu link Azul]\n💳 **PayPal:** [Aquí tu link PayPal]\n\nSelecciona el método que prefieras en los enlaces arriba. Si pagas por transferencia bancaria (Banreservas/Popular), responde este mensaje para enviarte los datos.`;
                     await sendWhatsAppMessage(from, payMsg);
                     return;
                 }
@@ -505,6 +505,35 @@ async function sendWhatsAppMessage(to, text) {
         });
     } else {
         console.log('Respuesta simulada:', text.slice(0, 100) + '...');
+    }
+}
+
+async function sendWhatsAppButtons(to, text, buttons) {
+    const WA_TOKEN = process.env.WA_TOKEN;
+    const WA_PHONE_ID = process.env.WA_PHONE_ID;
+    if (WA_TOKEN && WA_PHONE_ID) {
+        const payload = {
+            messaging_product: 'whatsapp',
+            to: to,
+            type: 'interactive',
+            interactive: {
+                type: 'button',
+                body: { text: text },
+                action: {
+                    buttons: buttons.map((btn, index) => ({
+                        type: 'reply',
+                        reply: { id: `btn_${index}_${btn.substring(0,20).replace(/[^a-zA-Z0-9]/g, '')}`, title: btn.substring(0, 20) }
+                    }))
+                }
+            }
+        };
+        await fetch(`https://graph.facebook.com/v21.0/${WA_PHONE_ID}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${WA_TOKEN}` },
+            body: JSON.stringify(payload)
+        });
+    } else {
+        console.log('Botones simulados:', text, buttons);
     }
 }
 

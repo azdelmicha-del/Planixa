@@ -138,6 +138,7 @@ async function loadAdminUsers() {
     console.log("Admin Users Data:", data);
     adminUsers = data.users || [];
     renderAdminUserList();
+    updateAdminDashboard();
     if (document.getElementById('adminManageView').style.display === 'block') {
       renderAdminManageTable();
     }
@@ -447,13 +448,120 @@ window.deleteAdminUser = async function(id) {
     });
     if (res.ok) {
       loadAdminUsers();
+      updateAdminDashboard();
     } else {
       await PremiumModal.alert('Error eliminando usuario. Puede que sea admin.');
     }
   } catch(e) { console.error(e); }
 }
 
+}
+
 async function loadAdminUserChat(userId) {
+  const view = document.getElementById('adminChatView');
+  view.innerHTML = '<div style="text-align:center; margin-top:20px;">Cargando chat...</div>';
+  try {
+    const res = await fetch('/api/admin/users/' + userId + '/chat', {
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') }
+    });
+    const data = await res.json();
+    view.innerHTML = '';
+    
+    if (data.messages && data.messages.length > 0) {
+      data.messages.forEach(m => {
+        const div = document.createElement('div');
+        div.style.padding = '10px';
+        div.style.borderRadius = '8px';
+        div.style.maxWidth = '80%';
+        div.style.marginBottom = '5px';
+        div.style.fontSize = '13px';
+        div.style.wordBreak = 'break-word';
+        if (m.role === 'user' || m.direction === 'incoming') {
+          div.style.background = 'var(--primary)';
+          div.style.color = '#fff';
+          div.style.alignSelf = 'flex-end';
+          div.style.marginLeft = 'auto';
+        } else {
+          div.style.background = 'var(--card)';
+          div.style.color = 'var(--text)';
+          div.style.border = '1px solid var(--border)';
+        }
+        div.innerText = m.content || m.message || '';
+        view.appendChild(div);
+      });
+    } else {
+      view.innerHTML = '<div style="text-align:center; margin-top:20px; color:var(--text-light);">No hay mensajes con este cliente.</div>';
+    }
+  } catch (err) {
+    view.innerHTML = '<div style="text-align:center; margin-top:20px; color:red;">Error cargando el chat.</div>';
+  }
+}
+
+function updateAdminDashboard() {
+  const total = adminUsers.length;
+  let activePro = 0, free = 0, exempt = 0, totalPlans = 0, monthlyRev = 0;
+  
+  const chartLabels = [];
+  const chartData = [];
+  const daysMap = {};
+
+  adminUsers.forEach(u => {
+    totalPlans += (u.plans_count || 0);
+    if (u.plan === 'admin' || u.plan === 'exempt') exempt++;
+    else if (u.plan === 'trial') free++;
+    else activePro++;
+    
+    // Revenue calc approx
+    if (u.plan === '1 Mes') monthlyRev += 395;
+    if (u.plan === '3 Meses') monthlyRev += 1066 / 3;
+    if (u.plan === '6 Meses') monthlyRev += 2014 / 6;
+    if (u.plan === '1 Año') monthlyRev += 3792 / 12;
+
+    const d = new Date(u.created_at || Date.now()).toLocaleDateString();
+    daysMap[d] = (daysMap[d] || 0) + 1;
+  });
+
+  document.getElementById('dashTotalUsers').innerText = total;
+  document.getElementById('dashActiveUsers').innerText = activePro;
+  document.getElementById('dashFreeUsers').innerText = free;
+  document.getElementById('dashExemptUsers').innerText = exempt;
+  document.getElementById('dashConversations').innerText = totalPlans;
+  document.getElementById('dashMRR').innerText = 'RD$ ' + Math.round(monthlyRev).toLocaleString();
+
+  // Draw chart
+  const last7Days = Array.from({length: 7}, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d.toLocaleDateString();
+  });
+
+  last7Days.forEach(day => {
+    chartLabels.push(day);
+    chartData.push(daysMap[day] || 0);
+  });
+
+  const ctx = document.getElementById('adminUsersChart');
+  if (ctx && window.Chart) {
+    if (window.adminChart) window.adminChart.destroy();
+    window.adminChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: chartLabels,
+        datasets: [{
+          label: 'Nuevos Usuarios',
+          data: chartData,
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56, 189, 248, 0.2)',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
+  }
+}
+
+async function selectAdminUser(userId) {
   const view = document.getElementById('adminChatView');
   view.innerHTML = '<div style="text-align:center; margin-top:20px;">Cargando chat...</div>';
   try {

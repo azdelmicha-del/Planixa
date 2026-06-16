@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planixa | Mi Portal</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/index.css">
+  <style>
+    body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; min-height: 100vh; }
+    .portal-header { background: var(--card); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; align-items: center; justify-content: space-between; }
+    .portal-header img { height: 30px; margin-right: 10px; }
+    .portal-container { flex: 1; max-width: 900px; margin: 40px auto; width: 100%; padding: 0 20px; }
+    .file-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; transition: transform 0.2s; }
+    .file-card:hover { transform: translateY(-3px); border-color: var(--primary); }
+    .btn-download { background: var(--primary); color: white; padding: 10px 15px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; }
+    #loginSection, #portalSection { display: none; }
+  </style>
+</head>
+<body>
+
+  <header class="portal-header">
+    <div style="display:flex; align-items:center;">
+      <img src="/favicon.ico" alt="Planixa">
+      <h2 style="margin:0; font-size:18px;">Planixa Asistente <span style="font-size:12px; font-weight:normal; color:var(--text-light);">| Mis Archivos</span></h2>
+    </div>
+    <button id="darkToggle" style="background:none; border:none; cursor:pointer; font-size:20px;">🌙</button>
+  </header>
+
+  <div class="portal-container">
+    
+    <!-- LOGIN SECTION -->
+    <div id="loginSection" style="max-width: 400px; margin: 0 auto; text-align:center;">
+      <div style="font-size:40px; margin-bottom:10px;">📲</div>
+      <h2>Accede a tu historial</h2>
+      <p style="color:var(--text-light); margin-bottom:25px;">Ingresa el número de teléfono que usas en WhatsApp para ver tus planificaciones.</p>
+      
+      <form id="portalLoginForm">
+        <input type="text" id="phoneInput" placeholder="Ej: 18091234567" style="width:100%; padding:15px; border-radius:10px; border:1px solid var(--border); font-size:16px; text-align:center; margin-bottom:15px; background:var(--bg); color:var(--text);" required>
+        <button type="submit" style="width:100%; padding:15px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold; font-size:16px; cursor:pointer;">Entrar a mi nube</button>
+      </form>
+      <div id="loginError" style="color:red; margin-top:15px; display:none;">No se encontraron registros con este número.</div>
+    </div>
+
+    <!-- PORTAL SECTION -->
+    <div id="portalSection">
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:25px;">
+        <div>
+          <h2 id="welcomeName" style="margin:0 0 5px 0;">¡Hola, Profe!</h2>
+          <p style="color:var(--text-light); margin:0;">Aquí están todas las planificaciones que has generado.</p>
+        </div>
+        <button id="logoutBtn" style="background:var(--card); border:1px solid var(--border); padding:8px 15px; border-radius:8px; cursor:pointer; color:var(--text);">Cerrar Sesión</button>
+      </div>
+
+      <div id="filesList">
+        <p style="text-align:center; color:var(--text-light); margin-top:50px;">Cargando tus documentos...</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/js/portal.js"></script>
+</body>
+</html>

@@ -6,7 +6,7 @@ const authenticateToken = (req, res, next) => {
     const authHeader = String(req.headers.authorization || '').trim();
     const token = authHeader.toLowerCase().startsWith('bearer ')
         ? authHeader.slice(7).trim()
-        : authHeader || String(req.body?.token || '').trim();
+        : authHeader || String(req.body?.token || req.query?.token || '').trim();
     
     if (!token) {
         return res.status(401).json({ success: false, message: 'Token no proporcionado' });
