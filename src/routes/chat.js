@@ -127,13 +127,14 @@ Mensaje: "${message}"`;
                             if (matchedFormat.instructions) tmplIns += `\nINSTRUCCIONES EXTRA DEL ADMIN: ${matchedFormat.instructions}`;
                             
                             tmplIns += `\n\nREGLA DE APROBACIÓN (MUY IMPORTANTE):
-1. Llena los datos que correspondan y preséntalos EN TEXTO NORMAL para que el profesor los lea. 
-2. AL FINAL del mensaje, OBLIGATORIAMENTE pregúntale: "¿Quedó todo bien? ¿Deseas que te genere este documento listo en Word?". 
-3. NO USES la etiqueta [GENERATE_WORD] en este momento.
-4. SÓLO usa [GENERATE_WORD] en tu SIGUIENTE mensaje si el profesor te responde que SÍ lo quiere en documento.
+1. NO entregues una muestra de la planificación ni el texto completo en el chat. Mantén tus respuestas conversacionales y breves.
+2. Si faltan datos para completar la plantilla, hazle al profesor las preguntas necesarias para obtenerlos.
+3. Una vez tengas todos los datos y la planificación esté mentalmente lista, AL FINAL de tu mensaje pregúntale: "¿Tengo todos los datos listos, deseas que te genere tu documento en Word ahora?". 
+4. NO USES la etiqueta [GENERATE_WORD] en este momento.
+5. SÓLO usa [GENERATE_WORD] en tu SIGUIENTE mensaje si el profesor te responde que SÍ lo quiere en documento.
 
 CUANDO EL PROFESOR DE LA APROBACIÓN:
-Debes responder EXACTAMENTE con este formato:
+Debes responder EXACTAMENTE con este formato, SIN agregar toda la planificación en texto plano:
 [GENERATE_WORD]
 \`\`\`json
 {
