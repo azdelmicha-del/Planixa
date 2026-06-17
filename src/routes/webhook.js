@@ -272,31 +272,40 @@ Grado: 2do grado
                         const matchedFormat = formats.find(f => f.type.toLowerCase() === chosenType.toLowerCase());
                         if (matchedFormat) {
                             hasFormat = true;
-                            let tmplIns = `\n\nREGLA ESTRICTA DE FORMATO VISUAL (PLANTILLA WORD):\nEl administrador ha asignado una plantilla Word para este documento.`;
-                            if (matchedFormat.instructions) tmplIns += `\nINSTRUCCIONES EXTRA DEL ADMIN: ${matchedFormat.instructions}`;
-                            
-                            tmplIns += `\n\nREGLA DE APROBACIÓN (MUY IMPORTANTE):
-1. NO entregues una muestra de la planificación ni el texto completo en el chat. Mantén tus respuestas conversacionales y breves.
-2. Si faltan datos para completar la plantilla, hazle al profesor las preguntas necesarias para obtenerlos.
-3. Una vez tengas todos los datos y la planificación esté mentalmente lista, AL FINAL de tu mensaje pregúntale: "¿Tengo todos los datos listos, deseas que te genere tu documento en Word ahora?". 
-4. NO USES la etiqueta [GENERATE_WORD] en este momento.
-5. SÓLO usa [GENERATE_WORD] en tu SIGUIENTE mensaje si el profesor te responde que SÍ lo quiere en documento.
 
-CUANDO EL PROFESOR DE LA APROBACIÓN:
-Debes responder EXACTAMENTE con este formato, SIN agregar toda la planificación en texto plano:
+                            // ═══════════════════════════════════════════════════════════
+                            // MODO DIRECTO: La IA genera el Word SIN pedir confirmación.
+                            // Si le faltan datos, los pide en el chat y genera en cuanto
+                            // tiene todo. NUNCA envía la planificación como texto plano.
+                            // ═══════════════════════════════════════════════════════════
+                            let tmplIns = `\n\nPLANTILLA WORD ASIGNADA — REGLAS DE GENERACIÓN INMEDIATA (CRÍTICO):
+El administrador configuró una plantilla Word para este tipo de documento. Debes seguir estas reglas SIN EXCEPCIÓN:
+
+REGLA 1 — NUNCA envíes la planificación como texto plano en el chat. Ni como borrador, ni como muestra, ni como previsualización.
+
+REGLA 2 — Si tienes todos los datos necesarios (nombre del profesor, grado, área, tema): responde INMEDIATAMENTE en este ÚNICO formato y NADA MÁS:
 [GENERATE_WORD]
 \`\`\`json
 {
-  "etiqueta_del_word1": "Valor rellenado por ti",
-  "etiqueta_del_word2": "Valor rellenado por ti"
+  "clave_de_la_plantilla": "valor que debes completar con los datos recopilados",
+  "otra_clave": "otro valor"
 }
 \`\`\`
-Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el contexto.`;
+
+REGLA 3 — Si te FALTAN datos para completar el documento (ej: no sabes el tema), haz UNA sola pregunta concisa para obtener lo que falta. Luego en tu siguiente turno genera el [GENERATE_WORD] directamente.
+
+REGLA 4 — NO preguntes "¿quieres que genere el documento?". Generalo directamente en cuanto tengas los datos.
+
+REGLA 5 — Después del bloque [GENERATE_WORD] puedes añadir UNA frase corta como "¡Listo profe! Tu documento Word está siendo preparado 📄".`;
+
+                            if (matchedFormat.instructions) {
+                                tmplIns += `\n\nINSTRUCCIONES DEL ADMIN SOBRE LAS CLAVES JSON:\n${matchedFormat.instructions}`;
+                            }
+
                             MINERD_SYSTEM_PROMPT += tmplIns;
                             const newPendingFormatId = matchedFormat._id.toString();
                             if (activeConv) {
                                 activeConv.pendingFormatId = newPendingFormatId;
-                                // Persistir en DB inmediatamente para que sobreviva a la próxima vuelta del webhook
                                 await getDb().collection('conversations').updateOne(
                                     { _id: activeConv._id },
                                     { $set: { pendingFormatId: newPendingFormatId } }
@@ -309,9 +318,9 @@ Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el co
                 }
 
                 // --- RECUPERACIÓN DE FORMATO PENDIENTE ---
-                // Si el clasificador dijo NINGUNO pero la conversación ya tiene un pendingFormatId
-                // de un turno anterior (ej: profesor dice "sí" para confirmar), reinjectamos
-                // las instrucciones para que la IA sepa que debe generar el [GENERATE_WORD].
+                // Hay un pendingFormatId de un turno anterior pero el mensaje actual
+                // no disparó el clasificador. Se reinyectan instrucciones para que
+                // la IA genere el Word inmediatamente con lo que ya sabe.
                 if (!hasFormat && activeConv && activeConv.pendingFormatId) {
                     try {
                         const pendingFmt = await getDb().collection('doc_formats').findOne(
@@ -319,20 +328,20 @@ Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el co
                         );
                         if (pendingFmt) {
                             hasFormat = true;
-                            let recoverIns = `\n\nREGLA DE DOCUMENTO WORD PENDIENTE (CRÍTICO):
-El profesor ya acordó crear un documento usando una plantilla Word. El sistema está listo para generarlo.
+                            let recoverIns = `\n\nPLANTILLA WORD PENDIENTE — ACCIÓN INMEDIATA REQUERIDA (CRÍTICO):
+Ya tienes suficiente información sobre lo que el profesor necesita. El sistema está esperando que generes el documento Word AHORA.
 
-Si en el mensaje actual el profesor confirma (dice palabras como: "sí", "sí quiero", "genéralo", "ok", "dale", "hazlo", "envíamelo", etc.), DEBES responder EXACTAMENTE así y NADA MÁS:
+DEBES responder EXACTAMENTE con este formato y NADA MÁS (sin texto plano de la planificación):
 [GENERATE_WORD]
 \`\`\`json
 {
-  "campo1": "valor que debes rellenar con los datos recopilados",
-  "campo2": "valor rellenado"
+  "clave": "valor completo que tú debes generar/rellenar usando todos los datos de la conversación",
+  "otra_clave": "otro valor"
 }
 \`\`\`
 
-Si el profesor NO confirma aún (pregunta algo, pide cambios, da más datos), continúa conversando y recolectando la información faltante, terminando con: "¿Todo listo, quieres que genere tu documento Word ahora?"`;
-                            if (pendingFmt.instructions) recoverIns += `\n\nINSTRUCCIONES DEL ADMIN PARA LAS CLAVES JSON: ${pendingFmt.instructions}`;
+Después del JSON puedes agregar solo una frase corta confirmando. NUNCA escribas el contenido de la planificación en texto plano.`;
+                            if (pendingFmt.instructions) recoverIns += `\n\nINSTRUCCIONES DEL ADMIN PARA LAS CLAVES JSON:\n${pendingFmt.instructions}`;
                             MINERD_SYSTEM_PROMPT += recoverIns;
                         }
                     } catch(e) {
@@ -344,6 +353,7 @@ Si el profesor NO confirma aún (pregunta algo, pide cambios, da más datos), co
             } catch (err) {
                 console.error("Error en AI Router", err);
             }
+
 
 // ==========================================
 // MEDIA PROCESSING HELPERS
