@@ -189,13 +189,13 @@ module.exports = function (app) {
             }
 
             let MINERD_SYSTEM_PROMPT = `Eres "Planixa", asistente de planificación docente del MINERD. Responde en español dominicano.`;
+            let hasFormat = false; // declarado fuera del try para que sea accesible en la generación forzada
             
             try {
                 // Fetch prompts
                 const prompts = await getDb().collection('prompts').find({}).toArray();
                 const formats = await getDb().collection('doc_formats').find({}).toArray();
                 let selectedPrompt = prompts.length > 0 ? prompts[0] : null;
-                let hasFormat = false;
 
                 let routerPromise = null;
                 if (prompts.length > 1) {
