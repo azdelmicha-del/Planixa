@@ -934,13 +934,61 @@ window.openKnowledgeModal = function() {
   document.getElementById('kId').value = '';
   document.getElementById('kTitle').value = '';
   document.getElementById('kContent').value = '';
+  const fileInput = document.getElementById('kFileInput');
+  if (fileInput) fileInput.value = '';
+  const fileStatus = document.getElementById('kFileStatus');
+  if (fileStatus) fileStatus.style.display = 'none';
   document.getElementById('knowledgeModalTitle').textContent = 'Nuevo Conocimiento';
   document.getElementById('knowledgeModal').style.display = 'flex';
-  document.getElementById('countKnowledge').innerText = '0 / 4000';
+  document.getElementById('countKnowledge').innerText = '0 / 40000';
 };
 
 window.closeKnowledgeModal = function() {
   document.getElementById('knowledgeModal').style.display = 'none';
+};
+
+window.handleKnowledgeFileUpload = async function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById('kFileStatus');
+  statusEl.style.display = 'block';
+  statusEl.innerText = 'Extrayendo texto, por favor espera...';
+  statusEl.style.color = 'var(--primary)';
+
+  const formData = new FormData();
+  formData.append('knowledgeFile', file);
+
+  try {
+    const res = await fetch('/api/admin/knowledge/extract', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') },
+      body: formData
+    });
+    
+    const data = await res.json();
+    
+    if (res.ok) {
+      statusEl.innerText = 'Texto extraído correctamente.';
+      statusEl.style.color = '#10b981';
+      
+      const contentEl = document.getElementById('kContent');
+      contentEl.value = (contentEl.value + '\\n\\n' + data.text).trim();
+      document.getElementById('countKnowledge').innerText = contentEl.value.length + ' / 40000';
+      
+      const titleEl = document.getElementById('kTitle');
+      if (!titleEl.value) {
+        titleEl.value = file.name.replace(/\\.[^/.]+$/, ""); // Quitar extensión
+      }
+    } else {
+      statusEl.innerText = 'Error al extraer: ' + (data.error || 'Desconocido');
+      statusEl.style.color = '#dc2626';
+    }
+  } catch (err) {
+    console.error(err);
+    statusEl.innerText = 'Error de conexión.';
+    statusEl.style.color = '#dc2626';
+  }
 };
 
 window.editKnowledge = function(id) {

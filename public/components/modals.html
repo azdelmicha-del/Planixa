@@ -371,9 +371,15 @@
       <input type="text" id="kTitle" placeholder="Ej: Reglamento Escolar 2026" style="width:100%; padding:8px; border-radius:6px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border);">
     </div>
     <div style="margin-top:15px;">
+      <label style="display:block; margin-bottom:5px; font-size:13px; font-weight:bold;">Extraer de Documento (Opcional)</label>
+      <p style="font-size:11px; color:var(--text-light); margin-bottom:5px;">Sube un PDF o Word y extraeremos el texto automáticamente.</p>
+      <input type="file" id="kFileInput" accept=".pdf,.docx,.txt" style="width:100%; padding:8px; border-radius:6px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); font-size:12px;" onchange="window.handleKnowledgeFileUpload(event)">
+      <div id="kFileStatus" style="font-size:11px; color:var(--primary); margin-top:4px; display:none;">Extrayendo texto, por favor espera...</div>
+    </div>
+    <div style="margin-top:15px;">
       <label style="display:block; margin-bottom:5px; font-size:13px; font-weight:bold;">Contenido (Verdad Absoluta)</label>
-      <textarea id="kContent" rows="8" placeholder="Pega la información aquí..." style="width:100%; padding:8px; border-radius:6px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); font-size:13px; resize:vertical;" oninput="document.getElementById('countKnowledge').innerText = this.value.length + ' / 4000'"></textarea>
-      <div style="text-align:right; font-size:10px; color:var(--text-muted); margin-top:3px;" id="countKnowledge">0 / 4000</div>
+      <textarea id="kContent" rows="8" placeholder="Pega la información aquí o extraela de un archivo..." style="width:100%; padding:8px; border-radius:6px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); font-size:13px; resize:vertical;" oninput="document.getElementById('countKnowledge').innerText = this.value.length + ' / 40000'"></textarea>
+      <div style="text-align:right; font-size:10px; color:var(--text-muted); margin-top:3px;" id="countKnowledge">0 / 40000</div>
     </div>
     <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
       <button onclick="window.closeKnowledgeModal()" style="padding:8px 15px; border-radius:6px; background:transparent; color:var(--text); border:1px solid var(--border); cursor:pointer;">Cancelar</button>

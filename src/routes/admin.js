@@ -5,6 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { logApiUsage } = require('../finance');
+const pdfParse = require('pdf-parse');
+const mammoth = require('mammoth');
 
 // Configure multer storage
 const storage = multer.diskStorage({
@@ -507,6 +509,41 @@ Si no pide un PDF explícitamente, responde normalmente.`;
     });
 
     // --- BASE DE CONOCIMIENTOS ---
+    app.post('/api/admin/knowledge/extract', authenticateToken, upload.single('knowledgeFile'), async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
+        try {
+            if (!req.file) return res.status(400).json({ error: 'No se subió ningún archivo' });
+            
+            const filePath = req.file.path;
+            const ext = path.extname(req.file.originalname).toLowerCase();
+            let extractedText = '';
+
+            if (ext === '.pdf') {
+                const { PDFParse } = require('pdf-parse');
+                const dataBuffer = fs.readFileSync(filePath);
+                const parser = new PDFParse({ data: dataBuffer });
+                const data = await parser.getText();
+                extractedText = data.text;
+                await parser.destroy();
+            } else if (ext === '.docx' || ext === '.doc') {
+                // mammoth funciona mejor con docx. Para doc antiguo podría fallar, pero la UI pide docx principalmente.
+                const result = await mammoth.extractRawText({ path: filePath });
+                extractedText = result.value;
+            } else if (ext === '.txt') {
+                extractedText = fs.readFileSync(filePath, 'utf8');
+            } else {
+                fs.unlinkSync(filePath); 
+                return res.status(400).json({ error: 'Formato no soportado. Usa PDF, DOCX o TXT.' });
+            }
+
+            fs.unlinkSync(filePath);
+            res.json({ success: true, text: extractedText });
+        } catch (err) { 
+            if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+            res.status(500).json({ error: err.message }); 
+        }
+    });
+
     app.get('/api/admin/knowledge', authenticateToken, async (req, res) => {
         if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
         try {
