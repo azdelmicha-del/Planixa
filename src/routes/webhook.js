@@ -177,20 +177,15 @@ module.exports = function (app) {
             try {
                 // Fetch prompts
                 const prompts = await getDb().collection('prompts').find({}).toArray();
-                let selectedPrompt = null;
+                const formats = await getDb().collection('doc_formats').find({}).toArray();
+                let selectedPrompt = prompts.length > 0 ? prompts[0] : null;
+                let hasFormat = false;
 
-                if (prompts.length === 1) {
-                    selectedPrompt = prompts[0];
-                } else if (prompts.length > 1) {
-                    // --- AI ROUTER ---
-                    const routerPrompt = `Eres un enrutador inteligente. Tienes los siguientes Especialistas (Prompts) disponibles:
-${prompts.map(p => `- ID: ${p._id.toString()} | Nombre: ${p.name} | Cuándo usar: ${p.description}`).join('\n')}
-
-El usuario ha dicho: "${text}"
-
-Responde ÚNICAMENTE con el ID del Especialista que mejor puede atender esta solicitud. Si ninguno aplica claramente, responde con el ID del Especialista más general o principal.`;
+                let routerPromise = null;
+                if (prompts.length > 1) {
+                    const routerPrompt = `Eres un enrutador inteligente. Tienes los siguientes Especialistas (Prompts) disponibles:\n${prompts.map(p => `- ID: ${p._id.toString()} | Nombre: ${p.name} | Cuándo usar: ${p.description}`).join('\n')}\n\nEl usuario ha dicho: "${text}"\n\nResponde ÚNICAMENTE con el ID del Especialista que mejor puede atender esta solicitud. Si ninguno aplica claramente, responde con el ID del Especialista más general o principal.`;
                     
-                    const routerRes = await fetch('https://api.openai.com/v1/chat/completions', {
+                    routerPromise = fetch('https://api.openai.com/v1/chat/completions', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
                         body: JSON.stringify({
@@ -200,15 +195,35 @@ Responde ÚNICAMENTE con el ID del Especialista que mejor puede atender esta sol
                             temperature: 0
                         })
                     });
+                }
+
+                let formatPromise = null;
+                if (formats.length > 0) {
+                    const formatMatcherPrompt = `Eres un clasificador. Revisa si el mensaje del usuario está pidiendo generar un documento. Formatos disponibles: ${formats.map(f => f.type).join(', ')}. Si pide uno de esos, responde EXACTAMENTE con el tipo. Si no, responde "NINGUNO".\nMensaje: "${text}"`;
                     
-                    if (routerRes.ok) {
-                        const rData = await routerRes.json();
-                        if (rData.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Enrutador IA', 'gpt-4o-mini', rData.usage);
-                        const chosenId = rData.choices?.[0]?.message?.content?.trim();
-                        selectedPrompt = prompts.find(p => p._id.toString() === chosenId) || prompts[0];
-                    } else {
-                        selectedPrompt = prompts[0];
-                    }
+                    formatPromise = fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+                        body: JSON.stringify({
+                            model: 'gpt-4o-mini',
+                            messages: [{ role: 'system', content: formatMatcherPrompt }],
+                            max_tokens: 20,
+                            temperature: 0
+                        })
+                    });
+                }
+
+                // Ejecutar ambas llamadas en paralelo
+                const [routerRes, fRes] = await Promise.all([
+                    routerPromise ? routerPromise.catch(e => { console.error("Router error", e); return null; }) : Promise.resolve(null),
+                    formatPromise ? formatPromise.catch(e => { console.error("Format error", e); return null; }) : Promise.resolve(null)
+                ]);
+
+                if (routerRes && routerRes.ok) {
+                    const rData = await routerRes.json();
+                    if (rData.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Enrutador IA', 'gpt-4o-mini', rData.usage);
+                    const chosenId = rData.choices?.[0]?.message?.content?.trim();
+                    selectedPrompt = prompts.find(p => p._id.toString() === chosenId) || prompts[0];
                 }
 
                 if (selectedPrompt) {
@@ -233,35 +248,18 @@ Grado: 2do grado
 ¿Te parece bien esta estructura, profe? ¿Quieres hacer algún ajuste?`;
 
                 // --- FORMAT INJECTOR ---
-                const formats = await getDb().collection('doc_formats').find({}).toArray();
-                let hasFormat = false;
-                if (formats.length > 0) {
-                    const formatMatcherPrompt = `Eres un clasificador. Revisa si el mensaje del usuario está pidiendo generar un documento. Formatos disponibles: ${formats.map(f => f.type).join(', ')}. Si pide uno de esos, responde EXACTAMENTE con el tipo. Si no, responde "NINGUNO".
-Mensaje: "${text}"`;
-                    
-                    const fRes = await fetch('https://api.openai.com/v1/chat/completions', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-                        body: JSON.stringify({
-                            model: 'gpt-4o-mini',
-                            messages: [{ role: 'system', content: formatMatcherPrompt }],
-                            max_tokens: 20,
-                            temperature: 0
-                        })
-                    });
-
-                    if (fRes.ok) {
-                        const fData = await fRes.json();
-                        if (fData.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Clasificador Formato', 'gpt-4o-mini', fData.usage);
-                        const chosenType = fData.choices?.[0]?.message?.content?.trim();
-                        if (chosenType && chosenType !== "NINGUNO") {
-                            const matchedFormat = formats.find(f => f.type.toLowerCase() === chosenType.toLowerCase());
-                            if (matchedFormat) {
-                        hasFormat = true;
-                                let tmplIns = `\n\nREGLA ESTRICTA DE FORMATO VISUAL (PLANTILLA WORD):\nEl administrador ha asignado una plantilla Word para este documento.`;
-                                if (matchedFormat.instructions) tmplIns += `\nINSTRUCCIONES EXTRA DEL ADMIN: ${matchedFormat.instructions}`;
-                                
-                                tmplIns += `\n\nREGLA DE APROBACIÓN (MUY IMPORTANTE):
+                if (fRes && fRes.ok) {
+                    const fData = await fRes.json();
+                    if (fData.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Clasificador Formato', 'gpt-4o-mini', fData.usage);
+                    const chosenType = fData.choices?.[0]?.message?.content?.trim();
+                    if (chosenType && chosenType !== "NINGUNO") {
+                        const matchedFormat = formats.find(f => f.type.toLowerCase() === chosenType.toLowerCase());
+                        if (matchedFormat) {
+                            hasFormat = true;
+                            let tmplIns = `\n\nREGLA ESTRICTA DE FORMATO VISUAL (PLANTILLA WORD):\nEl administrador ha asignado una plantilla Word para este documento.`;
+                            if (matchedFormat.instructions) tmplIns += `\nINSTRUCCIONES EXTRA DEL ADMIN: ${matchedFormat.instructions}`;
+                            
+                            tmplIns += `\n\nREGLA DE APROBACIÓN (MUY IMPORTANTE):
 1. NO entregues una muestra de la planificación ni el texto completo en el chat. Mantén tus respuestas conversacionales y breves.
 2. Si faltan datos para completar la plantilla, hazle al profesor las preguntas necesarias para obtenerlos.
 3. Una vez tengas todos los datos y la planificación esté mentalmente lista, AL FINAL de tu mensaje pregúntale: "¿Tengo todos los datos listos, deseas que te genere tu documento en Word ahora?". 
@@ -278,13 +276,11 @@ Debes responder EXACTAMENTE con este formato, SIN agregar toda la planificación
 }
 \`\`\`
 Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el contexto.`;
-                                MINERD_SYSTEM_PROMPT += tmplIns;
-                                // Inyectar el ID del formato en el system message temporalmente para saber cuál usar
-                                if (activeConv) {
-                                    activeConv.pendingFormatId = matchedFormat._id.toString();
-                                } else {
-                                    req.pendingFormatId = matchedFormat._id.toString();
-                                }
+                            MINERD_SYSTEM_PROMPT += tmplIns;
+                            if (activeConv) {
+                                activeConv.pendingFormatId = matchedFormat._id.toString();
+                            } else {
+                                req.pendingFormatId = matchedFormat._id.toString();
                             }
                         }
                     }
