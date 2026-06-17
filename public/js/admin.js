@@ -251,8 +251,9 @@ function renderAdminPrompts(items = adminPrompts) {
     card.style.border = '1px solid var(--border)';
     card.style.borderRadius = '8px';
     card.style.cursor = 'pointer';
+    card.style.overflow = 'hidden';
     card.innerHTML = `
-      <h4 style="margin:0 0 5px 0;">${p.name}</h4>
+      <h4 style="margin:0 0 5px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.name}">${p.name}</h4>
       <p style="font-size:12px; color:var(--text-light); margin:0;">${(p.description || '').substring(0, 80)}...</p>
     `;
     card.onclick = () => openPromptModal(p);
