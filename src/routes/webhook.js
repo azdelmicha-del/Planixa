@@ -268,41 +268,10 @@ Grado: 2do grado
                     const fData = await fRes.json();
                     if (fData.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Clasificador Formato', 'gpt-4o-mini', fData.usage);
                     const chosenType = fData.choices?.[0]?.message?.content?.trim();
-                    if (chosenType && chosenType !== "NINGUNO") {
+                    if (chosenType && chosenType !== 'NINGUNO') {
                         const matchedFormat = formats.find(f => f.type.toLowerCase() === chosenType.toLowerCase());
                         if (matchedFormat) {
                             hasFormat = true;
-
-                            // ═══════════════════════════════════════════════════════════
-                            // MODO DIRECTO: La IA genera el Word SIN pedir confirmación.
-                            // Si le faltan datos, los pide en el chat y genera en cuanto
-                            // tiene todo. NUNCA envía la planificación como texto plano.
-                            // ═══════════════════════════════════════════════════════════
-                            let tmplIns = `\n\nPLANTILLA WORD ASIGNADA — REGLAS DE GENERACIÓN INMEDIATA (CRÍTICO):
-El administrador configuró una plantilla Word para este tipo de documento. Debes seguir estas reglas SIN EXCEPCIÓN:
-
-REGLA 1 — NUNCA envíes la planificación como texto plano en el chat. Ni como borrador, ni como muestra, ni como previsualización.
-
-REGLA 2 — Si tienes todos los datos necesarios (nombre del profesor, grado, área, tema): responde INMEDIATAMENTE en este ÚNICO formato y NADA MÁS:
-[GENERATE_WORD]
-\`\`\`json
-{
-  "clave_de_la_plantilla": "valor que debes completar con los datos recopilados",
-  "otra_clave": "otro valor"
-}
-\`\`\`
-
-REGLA 3 — Si te FALTAN datos para completar el documento (ej: no sabes el tema), haz UNA sola pregunta concisa para obtener lo que falta. Luego en tu siguiente turno genera el [GENERATE_WORD] directamente.
-
-REGLA 4 — NO preguntes "¿quieres que genere el documento?". Generalo directamente en cuanto tengas los datos.
-
-REGLA 5 — Después del bloque [GENERATE_WORD] puedes añadir UNA frase corta como "¡Listo profe! Tu documento Word está siendo preparado 📄".`;
-
-                            if (matchedFormat.instructions) {
-                                tmplIns += `\n\nINSTRUCCIONES DEL ADMIN SOBRE LAS CLAVES JSON:\n${matchedFormat.instructions}`;
-                            }
-
-                            MINERD_SYSTEM_PROMPT += tmplIns;
                             const newPendingFormatId = matchedFormat._id.toString();
                             if (activeConv) {
                                 activeConv.pendingFormatId = newPendingFormatId;
@@ -313,45 +282,67 @@ REGLA 5 — Después del bloque [GENERATE_WORD] puedes añadir UNA frase corta c
                             } else {
                                 req.pendingFormatId = newPendingFormatId;
                             }
+                            // Las instrucciones de Word van AL INICIO del prompt para tener
+                            // prioridad sobre las instrucciones del prompt del admin
+                            let wordPriority = `INSTRUCCIÓN PRIORITARIA DEL SISTEMA (ANULA CUALQUIER OTRA REGLA DE ENTREGA):
+Hay una plantilla Word configurada para este tipo de documento. DEBES seguir estas reglas SIN EXCEPCIÓN y por encima de cualquier otra instrucción:
+
+1. NUNCA envíes la planificación como texto plano en el chat. NUNCA.
+2. Si tienes todos los datos (grado, área, tema): responde SOLO con este bloque y NADA MÁS:
+[GENERATE_WORD]
+\`\`\`json
+{ "clave": "valor_completo" }
+\`\`\`
+3. Si te falta el tema: haz UNA sola pregunta y en el siguiente mensaje genera el bloque [GENERATE_WORD].
+4. NO preguntes si quieren el documento. Genéralo directamente.
+5. Después del JSON puedes añadir UNA frase corta de confirmación.
+`;
+                            if (matchedFormat.instructions) wordPriority += `\nCLAVES EXACTAS DEL JSON (ÚSALAS TAL CUAL):\n${matchedFormat.instructions}\n`;
+                            // INYECTAR AL INICIO, no al final
+                            MINERD_SYSTEM_PROMPT = wordPriority + '\n\n---\n\n' + MINERD_SYSTEM_PROMPT;
                         }
                     }
                 }
 
                 // --- RECUPERACIÓN DE FORMATO PENDIENTE ---
-                // Hay un pendingFormatId de un turno anterior pero el mensaje actual
-                // no disparó el clasificador. Se reinyectan instrucciones para que
-                // la IA genere el Word inmediatamente con lo que ya sabe.
+                // Solo activa si el mensaje es relacionado con documentos o una confirmación.
+                // Si el mensaje es un saludo o pregunta no relacionada, limpia el pendingFormatId.
                 if (!hasFormat && activeConv && activeConv.pendingFormatId) {
-                    try {
-                        const pendingFmt = await getDb().collection('doc_formats').findOne(
-                            { _id: new (require('mongoose').Types.ObjectId)(activeConv.pendingFormatId) }
+                    const isDocRelated = /planif|plan|unidad|secuencia|documento|word|genera|hazlo|s[íi]|ok|dale|listo|adelante|envía|manda|quiero|necesito|tema|grado|área|area|materia|decimal|entero|fraccion|suma|resta|multiplica|divid/i.test(text);
+                    const isJustGreeting = /^(hola|buenos|buenas|hi|hey|ok[,.]?$|gracias|ok ya|no lo|cancela|olv|no quiero)/i.test(text.trim());
+                    if (isJustGreeting || (!isDocRelated && text.length < 15)) {
+                        // Limpiar el pendingFormatId — el usuario cambió de tema
+                        console.log('[RECOVER FORMAT] Mensaje no relacionado, limpiando pendingFormatId');
+                        await getDb().collection('conversations').updateOne(
+                            { _id: activeConv._id },
+                            { $unset: { pendingFormatId: '' } }
                         );
-                        if (pendingFmt) {
-                            hasFormat = true;
-                            let recoverIns = `\n\nPLANTILLA WORD PENDIENTE — ACCIÓN INMEDIATA REQUERIDA (CRÍTICO):
-Ya tienes suficiente información sobre lo que el profesor necesita. El sistema está esperando que generes el documento Word AHORA.
-
-DEBES responder EXACTAMENTE con este formato y NADA MÁS (sin texto plano de la planificación):
+                        activeConv.pendingFormatId = null;
+                    } else {
+                        try {
+                            const pendingFmt = await getDb().collection('doc_formats').findOne(
+                                { _id: new mongoose.Types.ObjectId(activeConv.pendingFormatId) }
+                            );
+                            if (pendingFmt) {
+                                hasFormat = true;
+                                let wordPriority2 = `INSTRUCCIÓN PRIORITARIA DEL SISTEMA (ANULA CUALQUIER OTRA REGLA DE ENTREGA):
+Ya tienes info suficiente. Genera el documento Word AHORA. Responde SOLO con:
 [GENERATE_WORD]
 \`\`\`json
-{
-  "clave": "valor completo que tú debes generar/rellenar usando todos los datos de la conversación",
-  "otra_clave": "otro valor"
-}
+{ "clave": "valor_completo" }
 \`\`\`
-
-Después del JSON puedes agregar solo una frase corta confirmando. NUNCA escribas el contenido de la planificación en texto plano.`;
-                            if (pendingFmt.instructions) recoverIns += `\n\nINSTRUCCIONES DEL ADMIN PARA LAS CLAVES JSON:\n${pendingFmt.instructions}`;
-                            MINERD_SYSTEM_PROMPT += recoverIns;
+NUNCA escribas la planificación como texto plano.\n`;
+                                if (pendingFmt.instructions) wordPriority2 += `\nCLAVES EXACTAS DEL JSON:\n${pendingFmt.instructions}\n`;
+                                MINERD_SYSTEM_PROMPT = wordPriority2 + '\n\n---\n\n' + MINERD_SYSTEM_PROMPT;
+                            }
+                        } catch(e) {
+                            console.error('[RECOVER FORMAT] Error:', e.message);
                         }
-                    } catch(e) {
-                        console.error('[RECOVER FORMAT] Error:', e.message);
                     }
                 }
 
-                // Se eliminó la regla estricta de disponibilidad para permitir que el Prompt Principal converse libremente.
             } catch (err) {
-                console.error("Error en AI Router", err);
+                console.error('Error en AI Router', err);
             }
 
 
@@ -517,13 +508,14 @@ Si no encuentras NADA, responde: {}`;
             }
 
             // ═══════════════════════════════════════════════════════════════
-            // GENERACIÓN FORZADA: La IA tenía instrucciones de formato pero
-            // NO incluyó [GENERATE_WORD]. Se hace una 2da llamada forzada
-            // usando las instrucciones del admin (que ya tienen las variables
-            // exactas de la plantilla) para generar el JSON correcto.
+            // GENERACIÓN FORZADA: La IA recibió instrucciones de formato pero
+            // NO incluyó [GENERATE_WORD]. Solo disparamos si el usuario está
+            // confirmando o añadiendo datos (no en saludos/mensajes random).
             // ═══════════════════════════════════════════════════════════════
             const pendingFmtId = (activeConv && activeConv.pendingFormatId) || req.pendingFormatId;
-            if (hasFormat && pendingFmtId && !reply.includes('[GENERATE_WORD]')) {
+            const isDocConfirmation = /^(s[íi]|si|ok|dale|listo|genéralo|hazlo|adelante|perfecto|claro|mándamelo|envíamelo|si por favor|ya|bueno|sí quiero|quiero|generar)/i.test(text.trim());
+            const shouldForceGen = hasFormat && pendingFmtId && !reply.includes('[GENERATE_WORD]') && (isDocConfirmation || hasFormat);
+            if (shouldForceGen) {
                 try {
                     const fmtDoc2 = await getDb().collection('doc_formats').findOne(
                         { _id: new mongoose.Types.ObjectId(pendingFmtId) }
@@ -752,7 +744,14 @@ REGLAS IMPORTANTES:
                     } else {
                         console.error('[WORD GEN] Error:', e.message, e.stack);
                     }
-                    await sendWhatsAppMessage(from, 'Ocurrió un error generando el documento. Por favor intenta de nuevo.');
+                    // SIEMPRE limpiar pendingFormatId al fallar para no quedar en bucle
+                    if (activeConv) {
+                        await getDb().collection('conversations').updateOne(
+                            { _id: activeConv._id },
+                            { $unset: { pendingFormatId: '' } }
+                        ).catch(() => {});
+                    }
+                    await sendWhatsAppMessage(from, 'Ocurrió un error generando el documento. Por favor intenta de nuevo enviando tu solicitud.');
                 }
             }
 
