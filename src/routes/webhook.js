@@ -195,6 +195,8 @@ module.exports = function (app) {
 
             let MINERD_SYSTEM_PROMPT = `Eres "Planixa", asistente de planificación docente del MINERD. Responde en español dominicano.`;
             let hasFormat = false; // declarado fuera del try para que sea accesible en la generación forzada
+            let defaultPrompt = null;
+            let selectedPrompt = null;
             
             try {
                 // Fetch prompts
@@ -202,8 +204,8 @@ module.exports = function (app) {
                 const formats = await getDb().collection('doc_formats').find({}).toArray();
                 
                 // Buscar explícitamente "Planixa Principal" como el por defecto (soporta guiones bajos)
-                let defaultPrompt = prompts.find(p => p.name && p.name.replace(/_/g, ' ').trim().toLowerCase() === 'planixa principal') || (prompts.length > 0 ? prompts[0] : null);
-                let selectedPrompt = defaultPrompt;
+                defaultPrompt = prompts.find(p => p.name && p.name.replace(/_/g, ' ').trim().toLowerCase() === 'planixa principal') || (prompts.length > 0 ? prompts[0] : null);
+                selectedPrompt = defaultPrompt;
 
                 let routerPromise = null;
                 if (prompts.length > 1) {
