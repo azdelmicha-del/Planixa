@@ -118,6 +118,80 @@ module.exports = function (app) {
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
+    app.delete('/api/admin/users/:id/chat', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
+        try {
+            const userId = req.params.id;
+            const user = await getDb().collection('users').findOne({ _id: new mongoose.Types.ObjectId(userId) });
+            if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+            
+            await getDb().collection('client_messages').deleteMany({ phone: user.phone });
+            await getDb().collection('conversations').deleteMany({ userId });
+            
+            res.json({ success: true });
+        } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
+    app.post('/api/admin/users/:id/message', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
+        try {
+            const userId = req.params.id;
+            const message = req.body.message;
+            if (!message) return res.status(400).json({ error: 'Mensaje vacío' });
+            
+            const user = await getDb().collection('users').findOne({ _id: new mongoose.Types.ObjectId(userId) });
+            if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+            
+            // Si el usuario usa WhatsApp, lo enviamos por esa vía
+            if (user.phone) {
+                // Registrar en la colección para que aparezca en el chat
+                await getDb().collection('client_messages').insertOne({
+                    phone: user.phone,
+                    message: message,
+                    direction: 'outgoing', // Identificar como enviado desde el sistema
+                    createdAt: new Date()
+                });
+                
+                // Enviar usando la API de Facebook Graph si está configurada
+                const WA_TOKEN = process.env.WA_TOKEN;
+                const WA_PHONE_ID = process.env.WA_PHONE_ID;
+                if (WA_TOKEN && WA_PHONE_ID) {
+                    await fetch(`https://graph.facebook.com/v21.0/${WA_PHONE_ID}/messages`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${WA_TOKEN}` },
+                        body: JSON.stringify({ messaging_product: 'whatsapp', to: user.phone, type: 'text', text: { body: message } })
+                    }).catch(console.error);
+                } else {
+                    console.log('Modo simulador WA. Mensaje enviado a', user.phone, ':', message);
+                }
+            } 
+            
+            // Siempre agregarlo a su conversación web principal para que quede registro
+            const activeConv = await getDb().collection('conversations').find({ userId }).sort({ createdAt: -1 }).limit(1).toArray();
+            if (activeConv && activeConv.length > 0) {
+                await getDb().collection('conversations').updateOne(
+                    { _id: activeConv[0]._id },
+                    { 
+                        $push: { messages: { role: 'assistant', content: `[Admin]: ${message}`, timestamp: new Date() } },
+                        $set: { lastMsg: `[Admin]: ${message}` } 
+                    }
+                );
+            } else {
+                await getDb().collection('conversations').insertOne({
+                    userId: userId,
+                    createdAt: new Date(),
+                    lastMsg: `[Admin]: ${message}`,
+                    messages: [{ role: 'assistant', content: `[Admin]: ${message}`, timestamp: new Date() }]
+                });
+            }
+            
+            res.json({ success: true });
+        } catch (err) {
+            console.error('Error enviando mensaje al cliente:', err);
+            res.status(500).json({ error: err.message });
+        }
+    });
+
     app.post('/api/admin/ai', authenticateToken, async (req, res) => {
         if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
         try {

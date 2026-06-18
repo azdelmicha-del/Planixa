@@ -318,7 +318,7 @@ async function saveAdminPrompt() {
 async function deleteAdminPrompt() {
   const id = document.getElementById('adminPromptId').value;
   if (!id) return;
-  if (!(await PremiumModal.confirm)('¿Seguro que deseas eliminar este agente?')) return;
+  if (!(await PremiumModal.confirm('¿Seguro que deseas eliminar este agente?'))) return;
   try {
     const res = await fetch('/api/admin/prompts/' + id, {
       method: 'DELETE',
@@ -441,7 +441,7 @@ async function saveAdminFormat() {
 async function deleteAdminFormat() {
   const id = document.getElementById('adminFormatId').value;
   if (!id) return;
-  if (!(await PremiumModal.confirm)('¿Seguro que deseas eliminar este formato?')) return;
+  if (!(await PremiumModal.confirm('¿Seguro que deseas eliminar este formato?'))) return;
   try {
     const res = await fetch('/api/admin/formats/' + id, {
       method: 'DELETE',
@@ -473,7 +473,7 @@ window.deleteAdminFormatById = async function(id) {
 };
 
 window.deleteAdminUser = async function(id) {
-  if (!(await PremiumModal.confirm)('¿Seguro que deseas eliminar a este usuario por completo? Se borrarán sus conversaciones también.')) return;
+  if (!(await PremiumModal.confirm('¿Seguro que deseas eliminar a este usuario por completo? Se borrarán sus conversaciones también.'))) return;
   try {
     const res = await fetch('/api/admin/users/' + id, {
       method: 'DELETE',
@@ -484,6 +484,22 @@ window.deleteAdminUser = async function(id) {
       updateAdminDashboard();
     } else {
       await PremiumModal.alert('Error eliminando usuario. Puede que sea admin.');
+    }
+  } catch(e) { console.error(e); }
+}
+
+window.clearUserChat = async function(userId) {
+  if (!(await PremiumModal.confirm('¿Seguro que deseas vaciar todo el historial de chat de este profesor? (Su perfil y preferencias se mantendrán intactos)'))) return;
+  try {
+    const res = await fetch('/api/admin/users/' + userId + '/chat', {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') }
+    });
+    if (res.ok) {
+      loadAdminUserChat(userId);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      await PremiumModal.alert('Error al vaciar chat. Status: ' + res.status + ' Detalle: ' + (data.error || 'Desconocido'));
     }
   } catch(e) { console.error(e); }
 }
@@ -515,10 +531,11 @@ async function loadAdminUserChat(userId) {
           <div style="font-weight:bold; font-size:15px;">${user.name || 'Sin nombre'}</div>
           <div style="font-size:12px; color:var(--text-light);">📱 ${user.phone || '-'}</div>
         </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; font-size:12px;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; font-size:12px; align-items:center;">
           <span style="background:${planColor}22; color:${planColor}; border:1px solid ${planColor}55; border-radius:6px; padding:3px 10px; font-weight:600;">📋 ${user.plan || 'trial'}</span>
           <span style="background:var(--bg-hover); border-radius:6px; padding:3px 10px;">🗓️ Vence: ${expiresStr}</span>
           <span style="background:var(--bg-hover); border-radius:6px; padding:3px 10px;">📄 ${user.plans_count || 0} planificaciones</span>
+          <button onclick="clearUserChat('${userId}')" style="background:rgba(239, 68, 68, 0.2); color:#fca5a5; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:bold;">🗑️ Vaciar Chat</button>
         </div>
       </div>
       <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border); display:flex; gap:15px; flex-wrap:wrap; font-size:12px; color:var(--text-light);">
@@ -600,10 +617,50 @@ async function loadAdminUserChat(userId) {
     view.appendChild(messagesContainer);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
+    // --- Caja para enviar mensajes ---
+    const inputContainer = document.createElement('div');
+    inputContainer.style.cssText = 'display:flex; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border);';
+    inputContainer.innerHTML = `
+      <input type="text" id="adminReplyInput_${userId}" placeholder="Escribe un mensaje al cliente..." style="flex:1; background:var(--bg-hover); border:1px solid var(--border); color:var(--text); padding:10px 15px; border-radius:8px; font-size:13px; outline:none;" onkeypress="if(event.key === 'Enter') sendAdminReply('${userId}')">
+      <button onclick="sendAdminReply('${userId}')" style="background:var(--primary); color:#fff; border:none; padding:0 20px; border-radius:8px; cursor:pointer; font-weight:bold; font-size:13px;">Enviar</button>
+    `;
+    view.appendChild(inputContainer);
+
   } catch (err) {
     console.error(err);
     view.innerHTML = '<div style="text-align:center; margin-top:20px; color:red;">Error cargando la conversación.</div>';
   }
+}
+
+window.sendAdminReply = async function(userId) {
+  const input = document.getElementById('adminReplyInput_' + userId);
+  if (!input) return;
+  const message = input.value.trim();
+  if (!message) return;
+
+  input.disabled = true;
+  try {
+    const res = await fetch('/api/admin/users/' + userId + '/message', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + localStorage.getItem('planif_token')
+      },
+      body: JSON.stringify({ message })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      input.value = '';
+      loadAdminUserChat(userId); // Recargar el chat para ver el mensaje enviado
+    } else {
+      if (typeof PremiumModal !== 'undefined') await PremiumModal.alert(data.error || 'Error al enviar mensaje');
+    }
+  } catch(e) {
+    console.error(e);
+    if (typeof PremiumModal !== 'undefined') await PremiumModal.alert('Error de conexión');
+  }
+  input.disabled = false;
+  input.focus();
 }
 
 function updateAdminDashboard() {
@@ -828,7 +885,7 @@ document.getElementById('sendBroadcastBtn')?.addEventListener('click', async () 
     await PremiumModal.alert('Escribe un mensaje para enviar.');
     return;
   }
-  if (!(await PremiumModal.confirm)('¿Estás seguro de enviar esta difusión masiva a los usuarios seleccionados?')) return;
+  if (!(await PremiumModal.confirm('¿Estás seguro de enviar esta difusión masiva a los usuarios seleccionados?'))) return;
   
   try {
     const res = await fetch('/api/admin/broadcast', {
@@ -907,7 +964,7 @@ window.initFinancePanel = function() {
         await PremiumModal.alert('Ingresa un monto válido para recargar.');
         return;
       }
-      if (!(await PremiumModal.confirm)('¿Confirmas que has depositado $' + amount.toFixed(2) + ' en tu cuenta de OpenAI y deseas añadirlo al balance interno?')) return;
+      if (!(await PremiumModal.confirm('¿Confirmas que has depositado $' + amount.toFixed(2) + ' en tu cuenta de OpenAI y deseas añadirlo al balance interno?'))) return;
 
       try {
         const res = await fetch('/api/admin/finance/deposit', {

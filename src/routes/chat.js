@@ -20,7 +20,8 @@ module.exports = function (app) {
         if (conversationId) {
             const conv = await getDb().collection('conversations').findOne({ _id: new (require('mongoose').Types.ObjectId)(conversationId), userId });
             if (conv) {
-                history = conv.messages || [];
+                // Solo enviar los últimos 20 mensajes al contexto para no saturar tokens ni subir costos
+                history = (conv.messages || []).slice(-20);
                 if (conv.pendingFormatId) req.pendingFormatId = conv.pendingFormatId;
             }
         }
@@ -53,7 +54,10 @@ module.exports = function (app) {
             // Fetch prompts
             const prompts = await getDb().collection('prompts').find({}).toArray();
             const formats = await getDb().collection('doc_formats').find({}).toArray();
-        let selectedPrompt = prompts.length > 0 ? prompts[0] : null;
+            
+        // Buscar explícitamente "Planixa Principal" como el por defecto
+        let defaultPrompt = prompts.find(p => p.name && p.name.trim().toLowerCase() === 'planixa principal') || (prompts.length > 0 ? prompts[0] : null);
+        let selectedPrompt = defaultPrompt;
         let hasFormat = false;
 
         let routerPromise = null;
@@ -98,7 +102,7 @@ module.exports = function (app) {
             const rData = await routerRes.json();
             if (rData.usage) await logApiUsage(userId, 'Web: Enrutador IA', 'gpt-4o-mini', rData.usage);
             const chosenId = rData.choices?.[0]?.message?.content?.trim();
-            selectedPrompt = prompts.find(p => p._id.toString() === chosenId) || prompts[0];
+            selectedPrompt = prompts.find(p => p._id.toString() === chosenId) || defaultPrompt;
         }
 
         if (selectedPrompt) {
@@ -183,24 +187,92 @@ Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el co
         async function tryOpenAI() {
             let reply = null;
             if (!openaiKey || openaiKey.includes('your_')) return null;
+
+            // Determinar si es trabajo de especialista
+            const isSpecialistWork = selectedPrompt && defaultPrompt && selectedPrompt._id.toString() !== defaultPrompt._id.toString();
+            // Determinar si hay formato activo
+            const pendingFmtId = req.session.pendingFormatId || req.body.pendingFormatId;
+            const isDocConfirmation = /^(s[íi]|si|ok|dale|listo|genéralo|hazlo|adelante|perfecto|claro|mándamelo|envíamelo|si por favor|ya|bueno|sí quiero|quiero|generar)/i.test(message.trim());
+            const shouldWork = isSpecialistWork && (hasFormat || pendingFmtId || isDocConfirmation || message.length > 50);
+
             try {
-                const r = await fetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
-                    body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 2000, temperature: 0.3, messages })
-                });
-                if (r.ok) {
-                    const d = await r.json();
-                    if (d.usage) await logApiUsage(userId, 'Chat: Mensaje Principal', 'gpt-4o-mini', d.usage);
-                    const t = d?.choices?.[0]?.message?.content?.trim();
-                    if (t) reply = t;
+                if (shouldWork) {
+                    // --- FLUJO MULTI-AGENTE (Web) ---
+                    
+                    // 1. Especialista
+                    const specRes = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+                        body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 3000, temperature: 0.3, messages })
+                    });
+                    
+                    let specReply = '';
+                    if (specRes.ok) {
+                        const d = await specRes.json();
+                        if (d.usage) await logApiUsage(userId, 'Web: Especialista', 'gpt-4o-mini', d.usage);
+                        specReply = d?.choices?.[0]?.message?.content?.trim() || '';
+                    }
+
+                    // Generación Forzada
+                    const shouldForceGen = hasFormat && pendingFmtId && !specReply.includes('[GENERATE_WORD]');
+                    if (shouldForceGen) {
+                        const fmtDoc2 = await getDb().collection('doc_formats').findOne({ _id: new mongoose.Types.ObjectId(pendingFmtId) });
+                        if (fmtDoc2) {
+                            const convoContext = history.map(m => (m.role === 'user' ? 'Profesor' : 'Asistente') + ': ' + m.content).join('\n') + '\nProfesor: ' + message;
+                            const forcedPrompt = `Eres un experto generador de planificaciones.\nTAREA: Genera un JSON completo para Word.\n${fmtDoc2.instructions || ''}\nCONVERSACIÓN:\n${convoContext}\nResponde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
+                            
+                            const fr2 = await fetch('https://api.openai.com/v1/chat/completions', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+                                body: JSON.stringify({ model: 'gpt-4o', max_tokens: 4000, temperature: 0.3, messages: [{ role: 'user', content: forcedPrompt }] })
+                            });
+                            if (fr2.ok) {
+                                const fd2 = await fr2.json();
+                                if (fd2.usage) await logApiUsage(userId, 'Web: Gen Forzada', 'gpt-4o', fd2.usage);
+                                const forcedReply = fd2?.choices?.[0]?.message?.content?.trim();
+                                if (forcedReply && forcedReply.includes('[GENERATE_WORD]')) specReply = forcedReply;
+                            }
+                        }
+                    }
+
+                    // 2. Supervisor IA
+                    let supervisedReply = await callSupervisor(userId, systemWithRefs, message, specReply);
+
+                    // 3. Planixa Principal (Entrega Web)
+                    const principalSystemPrompt = defaultPrompt.content + `\n\nERES LA SECRETARIA. Un Especialista generó este trabajo:\n---\n${supervisedReply}\n---\nEntrégaselo al profesor amable y profesionalmente en la interfaz web. \nREGLA DE ORO: DEBES incluir EXACTAMENTE el mismo bloque [GENERATE_WORD] o [GENERATE_PDF] con su estructura intacta al final de tu mensaje.`;
+
+                    const prinRes = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+                        body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 4000, temperature: 0.5, messages: [{ role: 'system', content: principalSystemPrompt }] })
+                    });
+                    
+                    if (prinRes.ok) {
+                        const d = await prinRes.json();
+                        if (d.usage) await logApiUsage(userId, 'Web: Principal Delivery', 'gpt-4o-mini', d.usage);
+                        reply = d?.choices?.[0]?.message?.content?.trim() || supervisedReply;
+                    } else {
+                        reply = supervisedReply;
+                    }
+
+                } else {
+                    // --- FLUJO NORMAL (Planixa Principal) ---
+                    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
+                        body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 3000, temperature: 0.3, messages })
+                    });
+                    if (r.ok) {
+                        const d = await r.json();
+                        if (d.usage) await logApiUsage(userId, 'Web: Mensaje Principal', 'gpt-4o-mini', d.usage);
+                        reply = d?.choices?.[0]?.message?.content?.trim();
+                    }
+                    reply = await callSupervisor(userId, systemWithRefs, message, reply);
                 }
             } catch (e) {
                 console.error("OpenAI Error:", e);
             }
             
-            // -- PASO SUPERVISOR IA --
-            if (reply) reply = await callSupervisor(userId, systemWithRefs, message, reply);
             return reply;
         }
 

@@ -173,14 +173,19 @@ module.exports = function (app) {
             }
 
             // --- 1. MEMORIA DE WHATSAPP (AMNESIA FIX) ---
-            const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
             let activeConv = await getDb().collection('conversations').findOne({
                 userId,
                 is_whatsapp: true,
-                createdAt: { $gte: twelveHoursAgo }
+                createdAt: { $gte: thirtyDaysAgo }
             }, { sort: { createdAt: -1 } });
 
-            const historyMessages = activeConv ? activeConv.messages.map(m => ({ role: m.role, content: m.content })) : [];
+            let historyMessages = [];
+            if (activeConv && activeConv.messages) {
+                // Solo enviar los últimos 20 mensajes al contexto para no saturar tokens ni subir costos
+                const recentMessages = activeConv.messages.slice(-20);
+                historyMessages = recentMessages.map(m => ({ role: m.role, content: m.content }));
+            }
 
             const refDocs = await getDb().collection('references').find({ userId }).toArray();
             let refBlock = '';
@@ -195,7 +200,10 @@ module.exports = function (app) {
                 // Fetch prompts
                 const prompts = await getDb().collection('prompts').find({}).toArray();
                 const formats = await getDb().collection('doc_formats').find({}).toArray();
-                let selectedPrompt = prompts.length > 0 ? prompts[0] : null;
+                
+                // Buscar explícitamente "Planixa Principal" como el por defecto
+                let defaultPrompt = prompts.find(p => p.name && p.name.trim().toLowerCase() === 'planixa principal') || (prompts.length > 0 ? prompts[0] : null);
+                let selectedPrompt = defaultPrompt;
 
                 let routerPromise = null;
                 if (prompts.length > 1) {
@@ -239,7 +247,7 @@ module.exports = function (app) {
                     const rData = await routerRes.json();
                     if (rData.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Enrutador IA', 'gpt-4o-mini', rData.usage);
                     const chosenId = rData.choices?.[0]?.message?.content?.trim();
-                    selectedPrompt = prompts.find(p => p._id.toString() === chosenId) || prompts[0];
+                    selectedPrompt = prompts.find(p => p._id.toString() === chosenId) || defaultPrompt;
                 }
 
                 if (selectedPrompt) {
@@ -490,96 +498,106 @@ Si no encuentras NADA, responde: {}`;
 
             let reply = '⚠️ No pude procesar tu solicitud. Intenta de nuevo.';
             
-            // Lanzar vigilante y llamada IA en PARALELO
-            const [, aiResponse] = await Promise.all([
-                profileWatcher(),
-                fetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-                    body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 3000, temperature: 0.3, messages })
-                }).catch(e => { console.error('AI main error', e); return null; })
-            ]);
-
-            if (aiResponse && aiResponse.ok) {
-                const d = await aiResponse.json();
-                if (d.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Mensaje Principal', 'gpt-4o-mini', d.usage);
-                const t = d?.choices?.[0]?.message?.content?.trim();
-                if (t) reply = t;
-            }
-
-            // ═══════════════════════════════════════════════════════════════
-            // GENERACIÓN FORZADA: La IA recibió instrucciones de formato pero
-            // NO incluyó [GENERATE_WORD]. Solo disparamos si el usuario está
-            // confirmando o añadiendo datos (no en saludos/mensajes random).
-            // ═══════════════════════════════════════════════════════════════
+            // Determinar si es trabajo de especialista (el router eligió algo distinto a Planixa Principal)
+            const isSpecialistWork = selectedPrompt && defaultPrompt && selectedPrompt._id.toString() !== defaultPrompt._id.toString();
+            // Determinar si hay formato activo o confirmación
             const pendingFmtId = (activeConv && activeConv.pendingFormatId) || req.pendingFormatId;
             const isDocConfirmation = /^(s[íi]|si|ok|dale|listo|genéralo|hazlo|adelante|perfecto|claro|mándamelo|envíamelo|si por favor|ya|bueno|sí quiero|quiero|generar)/i.test(text.trim());
-            const shouldForceGen = hasFormat && pendingFmtId && !reply.includes('[GENERATE_WORD]') && (isDocConfirmation || hasFormat);
-            if (shouldForceGen) {
-                try {
-                    const fmtDoc2 = await getDb().collection('doc_formats').findOne(
-                        { _id: new mongoose.Types.ObjectId(pendingFmtId) }
-                    );
-                    if (fmtDoc2) {
-                        const convoContext = historyMessages
-                            .map(m => (m.role === 'user' ? 'Profesor' : 'Asistente') + ': ' + m.content)
-                            .join('\n') + '\nProfesor: ' + text;
+            const shouldWork = isSpecialistWork && (hasFormat || pendingFmtId || isDocConfirmation || text.length > 50);
 
-                        // Las instrucciones del admin ya contienen las variables EXACTAS de la plantilla
-                        const adminInstructions = fmtDoc2.instructions || 'Genera un JSON con los campos: nombre_completo_docente, grado_y_seccion, area_curricular, asignatura, fecha, actividades_de_inicio, actividades_de_desarrollo, actividades_de_cierre.';
+            if (shouldWork) {
+                // --- FLUJO MULTI-AGENTE (Especialista -> Supervisor -> Principal) ---
+                
+                // 1. Llamada al Especialista (usa systemWithRefs que tiene Base Conocimientos y Plantillas)
+                // Se invoca el perfilWatcher en paralelo para no perder tiempo
+                const [, specRes] = await Promise.all([
+                    profileWatcher(),
+                    fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+                        body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 3000, temperature: 0.3, messages })
+                    }).catch(e => { console.error('Especialista error', e); return null; })
+                ]);
 
-                        const forcedPrompt = `Eres un experto generador de planificaciones docentes del MINERD de República Dominicana.
+                let specReply = '';
+                if (specRes && specRes.ok) {
+                    const d = await specRes.json();
+                    if (d.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Especialista', 'gpt-4o-mini', d.usage);
+                    specReply = d?.choices?.[0]?.message?.content?.trim() || '';
+                }
 
-TAREA: Genera un JSON completo para rellenar una plantilla Word de planificación educativa.
-
-${adminInstructions}
-
-DATOS DEL PROFESOR (úsalos para los campos correspondientes):
+                // Generación Forzada si el Especialista olvidó el [GENERATE_WORD]
+                const shouldForceGen = hasFormat && pendingFmtId && !specReply.includes('[GENERATE_WORD]');
+                if (shouldForceGen) {
+                    try {
+                        const fmtDoc2 = await getDb().collection('doc_formats').findOne({ _id: new mongoose.Types.ObjectId(pendingFmtId) });
+                        if (fmtDoc2) {
+                            const convoContext = historyMessages.map(m => (m.role === 'user' ? 'Profesor' : 'Asistente') + ': ' + m.content).join('\n') + '\nProfesor: ' + text;
+                            const forcedPrompt = `Eres un experto generador de planificaciones docentes del MINERD.
+TAREA: Genera un JSON completo para rellenar una plantilla Word.
+${fmtDoc2.instructions || ''}
+DATOS DEL PROFESOR:
 - Nombre: ${user.name || 'No especificado'}
 - Grado: ${user.grade || 'No especificado'}
-- Área/Materia: ${user.area || 'No especificada'}
-- Centro Educativo: ${user.school || 'No especificado'}
-- Fecha actual: ${new Date().toLocaleDateString('es-DO')}
-
-CONVERSACIÓN (extrae aquí el tema, grado, área y cualquier detalle adicional):
+- Área: ${user.area || 'No especificada'}
+CONVERSACIÓN:
 ${convoContext}
-
-REGLAS IMPORTANTES:
-1. Para los campos que NO tienes información, usa "" (cadena vacía).
-2. Para los campos de actividades (inicio, desarrollo, cierre), genera contenido educativo real y completo basado en el tema solicitado.
-3. NO escribas "N/A", "No disponible" ni "No aplica". Solo "" o el valor real.
-4. Responde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON. Sin texto adicional antes ni después.
-
-[GENERATE_WORD]
-\`\`\`json
-{ "ejemplo_campo": "valor_de_ejemplo" }
-\`\`\``;
-
-                        const fr2 = await fetch('https://api.openai.com/v1/chat/completions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-                            body: JSON.stringify({ model: 'gpt-4o', max_tokens: 4000, temperature: 0.3, messages: [{ role: 'user', content: forcedPrompt }] })
-                        });
-                        if (fr2.ok) {
-                            const fd2 = await fr2.json();
-                            if (fd2.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Generacion Forzada Word', 'gpt-4o', fd2.usage);
-                            const forcedReply = fd2?.choices?.[0]?.message?.content?.trim();
-                            if (forcedReply && forcedReply.includes('[GENERATE_WORD]')) {
-                                reply = forcedReply;
-                                console.log('[FORCED GEN] Exito: [GENERATE_WORD] generado con instrucciones del admin');
-                            } else {
-                                console.warn('[FORCED GEN] La IA no incluyo [GENERATE_WORD] en la respuesta forzada');
+Responde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
+                            const fr2 = await fetch('https://api.openai.com/v1/chat/completions', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+                                body: JSON.stringify({ model: 'gpt-4o', max_tokens: 4000, temperature: 0.3, messages: [{ role: 'user', content: forcedPrompt }] })
+                            });
+                            if (fr2.ok) {
+                                const fd2 = await fr2.json();
+                                if (fd2.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Gen Forzada', 'gpt-4o', fd2.usage);
+                                const forcedReply = fd2?.choices?.[0]?.message?.content?.trim();
+                                if (forcedReply && forcedReply.includes('[GENERATE_WORD]')) specReply = forcedReply;
                             }
                         }
-                    }
-                } catch(forceErr) {
-                    console.error('[FORCED GEN] Error:', forceErr.message);
+                    } catch(e) { console.error('Forced Gen Error', e); }
                 }
+
+                // 2. Supervisor IA (El supervisor tiene reglas para respetar JSON)
+                let supervisedReply = await callSupervisor(user._id.toString(), systemWithRefs, text, specReply);
+
+                // 3. Planixa Principal (Envuelve el mensaje amigablemente)
+                const principalSystemPrompt = defaultPrompt.content + `\n\nDATOS DEL PROFESOR:\nNombre: ${user.name || 'Profe'}\nGrado: ${user.grade || 'No especificado'}\n\nERES LA SECRETARIA. Un Especialista ha generado el siguiente trabajo estructural para el profesor:\n---\n${supervisedReply}\n---\n\nTu tarea es entregarle esto al profesor de forma muy amable y profesional. \nREGLA DE ORO: DEBES incluir EXACTAMENTE el mismo bloque [GENERATE_WORD] con su JSON intacto al final de tu mensaje. NO MODIFIQUES EL JSON, SOLO AGREGA TU SALUDO AL PRINCIPIO. Usa el separador ||| entre tu charla y el documento.`;
+
+                const prinRes = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+                    body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 4000, temperature: 0.5, messages: [{ role: 'system', content: principalSystemPrompt }] })
+                }).catch(e => { console.error('Principal final error', e); return null; });
+                
+                if (prinRes && prinRes.ok) {
+                    const d = await prinRes.json();
+                    if (d.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Principal Delivery', 'gpt-4o-mini', d.usage);
+                    reply = d?.choices?.[0]?.message?.content?.trim() || supervisedReply;
+                } else {
+                    reply = supervisedReply;
+                }
+
+            } else {
+                // --- FLUJO NORMAL CONVERSACIONAL (Planixa Principal) ---
+                const [, prinRes] = await Promise.all([
+                    profileWatcher(),
+                    fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+                        body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 3000, temperature: 0.3, messages })
+                    }).catch(e => { console.error('Principal chat error', e); return null; })
+                ]);
+
+                if (prinRes && prinRes.ok) {
+                    const d = await prinRes.json();
+                    if (d.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Principal Chat', 'gpt-4o-mini', d.usage);
+                    reply = d?.choices?.[0]?.message?.content?.trim() || reply;
+                }
+
+                // Supervisor opcional
+                reply = await callSupervisor(user._id.toString(), systemWithRefs, text, reply);
             }
-
-            // -- PASO SUPERVISOR IA (omitir si hay GENERATE_WORD) --
-            if (reply && !reply.includes('[GENERATE_WORD]')) reply = await callSupervisor(user._id.toString(), systemWithRefs, text, reply);
-
 
             // SANITIZE LEAKED PROMPT DIRECTIVES
             if (reply) {
