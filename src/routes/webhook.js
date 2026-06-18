@@ -132,9 +132,15 @@ module.exports = function (app) {
 
             let historyMessages = [];
             if (activeConv && activeConv.messages) {
-                // Solo enviar los últimos 20 mensajes al contexto para no saturar tokens ni subir costos
+                // Solo enviar los últimos 20 mensajes al contexto
                 const recentMessages = activeConv.messages.slice(-20);
-                historyMessages = recentMessages.map(m => ({ role: m.role, content: m.content }));
+                historyMessages = recentMessages.map(m => {
+                    const msg = { role: m.role, content: m.content || '' };
+                    if (m.tool_calls) msg.tool_calls = m.tool_calls;
+                    if (m.tool_call_id) msg.tool_call_id = m.tool_call_id;
+                    if (m.name) msg.name = m.name;
+                    return msg;
+                });
             }
 
             const refDocs = await getDb().collection('references').find({ userId }).toArray();
@@ -162,6 +168,11 @@ module.exports = function (app) {
                 // ══════════════════════════════════════════════════════════
                 
                 profileWatcher(); // Ejecutar extracción de perfil de fondo
+
+                if (!defaultPrompt) {
+                    console.error("No hay prompts configurados. Creando prompt de emergencia.");
+                    defaultPrompt = { content: 'Eres Planixa Asistente, un IA experto dominicano.', _id: 'default_emergency_id' };
+                }
 
                 const availableSpecialists = prompts.filter(p => p._id.toString() !== defaultPrompt._id.toString());
                 const availableFormats = formats.map(f => f.type).join(', ');
