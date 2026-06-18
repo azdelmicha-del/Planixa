@@ -7,6 +7,7 @@ const multer = require('multer');
 const { logApiUsage } = require('../finance');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
+const os = require('os');
 
 // Configure multer storage
 const storage = multer.diskStorage({
@@ -664,5 +665,44 @@ Si no pide un PDF explícitamente, responde normalmente.`;
             await getDb().collection('knowledge').deleteOne({ _id });
             res.json({ success: true });
         } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
+    // --- SSE MONITOR DE SISTEMA ---
+    app.get('/api/admin/monitor/stream', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
+        
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+
+        // Enviar un log inicial
+        res.write(`data: ${JSON.stringify({ type: 'INIT', msg: 'Conexión establecida con el Monitor del Sistema', date: new Date().toISOString() })}\n\n`);
+
+        const sendMetrics = () => {
+            const totalMem = os.totalmem();
+            const freeMem = os.freemem();
+            const usedMem = totalMem - freeMem;
+            const memPercent = Math.round((usedMem / totalMem) * 100);
+            
+            // Aproximación simple de carga de CPU usando loadavg
+            const cpus = os.cpus().length;
+            const load = os.loadavg()[0];
+            const cpuPercent = Math.min(Math.round((load / cpus) * 100), 100);
+
+            res.write(`data: ${JSON.stringify({ type: 'METRICS', ram: memPercent, cpu: cpuPercent, uptime: os.uptime(), date: new Date().toISOString() })}\n\n`);
+        };
+
+        const metricsInterval = setInterval(sendMetrics, 2000);
+
+        const logListener = (data) => {
+            res.write(`data: ${JSON.stringify(data)}\n\n`);
+        };
+        app.on('system_log', logListener);
+
+        req.on('close', () => {
+            clearInterval(metricsInterval);
+            app.removeListener('system_log', logListener);
+        });
     });
 };

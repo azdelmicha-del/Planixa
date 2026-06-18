@@ -83,6 +83,8 @@ module.exports = function (app) {
 
             if (!text) return;
 
+            req.app.emit('system_log', { type: 'WHATSAPP_IN', color: '#25D366', title: 'Mensaje Recibido', details: `De: ${from} | "${text.substring(0, 100)}"` });
+
             console.log('WhatsApp de', from, ':', text);
             await getDb().collection('client_messages').insertOne({ phone: from, message: text, direction: 'incoming', employeeId: null, employeeName: null, createdAt: new Date() });
 
@@ -198,6 +200,7 @@ module.exports = function (app) {
                     if (rData.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Enrutador IA', 'gpt-4o-mini', rData.usage);
                     const chosenId = rData.choices?.[0]?.message?.content?.trim();
                     selectedPrompt = prompts.find(p => p._id.toString() === chosenId) || defaultPrompt;
+                    req.app.emit('system_log', { type: 'ROUTER', color: '#3b82f6', title: 'Especialista Asignado', details: selectedPrompt.name });
                 }
 
                 if (selectedPrompt) {
@@ -230,6 +233,7 @@ Grado: 2do grado
                         const matchedFormat = formats.find(f => f.type.toLowerCase() === chosenType.toLowerCase());
                         if (matchedFormat) {
                             hasFormat = true;
+                            req.app.emit('system_log', { type: 'FORMATO', color: '#8b5cf6', title: 'Formato Word Detectado', details: matchedFormat.type });
                             const newPendingFormatId = matchedFormat._id.toString();
                             if (activeConv) {
                                 activeConv.pendingFormatId = newPendingFormatId;
@@ -440,6 +444,7 @@ Si no encuentras NADA, responde: {}`;
                     if (Object.keys(updates).length > 0) {
                         await getDb().collection('users').updateOne({ _id: user._id }, { $set: updates });
                         console.log(`[VIGILANTE PERFIL] Actualizado perfil de ${from}:`, updates);
+                        req.app.emit('system_log', { type: 'VIGILANTE', color: '#f59e0b', title: 'Datos Extraídos', details: JSON.stringify(updates) });
                     }
                 } catch (e) {
                     console.error('[VIGILANTE PERFIL] Error silencioso:', e.message);
@@ -546,7 +551,13 @@ Responde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
                 }
 
                 // Supervisor opcional
+                const originalReply = reply;
                 reply = await callSupervisor(user._id.toString(), systemWithRefs, text, reply);
+                if (reply !== originalReply) {
+                    req.app.emit('system_log', { type: 'SUPERVISOR', color: '#ef4444', title: 'Supervisor IA Corrigió', details: 'Respuesta original modificada por el supervisor.' });
+                } else {
+                    req.app.emit('system_log', { type: 'SUPERVISOR', color: '#10b981', title: 'Supervisor IA Aprobó', details: 'Respuesta generada correctamente.' });
+                }
             }
 
             // SANITIZE LEAKED PROMPT DIRECTIVES
@@ -683,7 +694,7 @@ Responde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
                             const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
                             fs.writeFileSync(outPath, buf);
 
-                            await sendWhatsAppMessage(from, '¡Aquí tienes tu documento Word, profe! 📄✨');
+                            await sendWhatsAppMessage(from, '¡Aquí tienes tu documento Word, profe! 📄✨', req.app);
                             await sendWhatsAppDocument(from, outUrl, outFilename);
 
                             // Limpiar pendingFormatId
@@ -694,10 +705,10 @@ Responde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
                                 );
                             }
                         } else {
-                            await sendWhatsAppMessage(from, 'Hubo un error localizando la plantilla original.');
+                            await sendWhatsAppMessage(from, 'Hubo un error localizando la plantilla original.', req.app);
                         }
                     } else {
-                        await sendWhatsAppMessage(from, 'Hubo un problema encontrando el formato.');
+                        await sendWhatsAppMessage(from, 'Hubo un problema encontrando el formato.', req.app);
                     }
                 } catch(e) {
                     // Docxtemplater tiene errores estructurados con e.properties.errors
@@ -739,12 +750,21 @@ Responde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
                 waReply = waReply.replace(/^###\s+/gm, '*');
                 waReply = waReply.replace(/^##\s+/gm, '*');
                 waReply = waReply.replace(/^#\s+/gm, '*');
-                waReply = waReply.replace(/\|\|\|/g, '\n\n'); // Reemplazar separador por saltos de línea normales
                 
-                // Enviar el mensaje completo en bloques de 4000 (Límite de WhatsApp) para que quede en un solo "bubble"
-                const chunks = waReply.match(/[\s\S]{1,4000}/g) || [];
-                for (const chunk of chunks) {
-                    await sendWhatsAppMessage(from, chunk);
+                // Dividir el mensaje por el separador ||| para enviarlo en burbujas separadas
+                const messages = waReply.split(/\|\|\|/g).map(m => m.trim()).filter(m => m.length > 0);
+                
+                for (let i = 0; i < messages.length; i++) {
+                    const msgText = messages[i];
+                    // Asegurar que ninguna burbuja exceda los 4000 caracteres
+                    const chunks = msgText.match(/[\s\S]{1,4000}/g) || [];
+                    for (const chunk of chunks) {
+                        await sendWhatsAppMessage(from, chunk, req.app);
+                    }
+                    if (i < messages.length - 1) {
+                        // Pequeña pausa para asegurar orden de entrega en WhatsApp
+                        await new Promise(resolve => setTimeout(resolve, 800));
+                    }
                 }
             }
 
@@ -754,7 +774,9 @@ Responde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
     });
 };
 
-async function sendWhatsAppMessage(to, text) {
+async function sendWhatsAppMessage(to, text, app) {
+    if (app) app.emit('system_log', { type: 'WHATSAPP_OUT', color: '#25D366', title: 'Mensaje Enviado', details: `Para: ${to} | "${text.substring(0, 100)}"` });
+    
     const WA_TOKEN = process.env.WA_TOKEN;
     const WA_PHONE_ID = process.env.WA_PHONE_ID;
     if (WA_TOKEN && WA_PHONE_ID) {

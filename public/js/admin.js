@@ -12,8 +12,8 @@ window.initAdminPanel = function() {
   }
 
   function switchAdminTab(activeTabId, activeViewId, callback) {
-    const tabs = ['adminTabDash', 'adminTabUsers', 'adminTabManage', 'adminTabBroadcast', 'adminTabConfig', 'adminTabFormats', 'adminTabKnowledge'];
-    const views = ['adminDashView', 'adminChatView', 'adminManageView', 'adminBroadcastView', 'adminPromptView', 'adminFormatView', 'adminKnowledgeView'];
+    const tabs = ['adminTabDash', 'adminTabUsers', 'adminTabManage', 'adminTabBroadcast', 'adminTabConfig', 'adminTabFormats', 'adminTabKnowledge', 'adminTabMonitor'];
+    const views = ['adminDashView', 'adminChatView', 'adminManageView', 'adminBroadcastView', 'adminPromptView', 'adminFormatView', 'adminKnowledgeView', 'adminMonitorView'];
     
     tabs.forEach(tab => {
       const el = document.getElementById(tab);
@@ -57,6 +57,10 @@ window.initAdminPanel = function() {
   document.getElementById('adminTabConfig')?.addEventListener('click', () => switchAdminTab('adminTabConfig', 'adminPromptView', loadAdminPrompts));
   document.getElementById('adminTabFormats')?.addEventListener('click', () => switchAdminTab('adminTabFormats', 'adminFormatView', loadAdminFormats));
   document.getElementById('adminTabKnowledge')?.addEventListener('click', () => switchAdminTab('adminTabKnowledge', 'adminKnowledgeView', window.loadKnowledgeItems));
+  document.getElementById('adminTabMonitor')?.addEventListener('click', () => {
+    switchAdminTab('adminTabMonitor', 'adminMonitorView');
+    startSystemMonitor();
+  });
   document.getElementById('adminSearchUsers')?.addEventListener('input', (e) => {
     renderAdminUserList(e.target.value);
     if (document.getElementById('adminManageView').style.display === 'block') {
@@ -1273,4 +1277,85 @@ Si la respuesta original CUMPLE con todo, retorna el texto original intacto. Si 
     const tbody = document.getElementById('supervisorLogsBody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:red;">Error cargando registros.</td></tr>';
   }
+};
+
+// ==========================================
+// MONITOR DE SISTEMA EN VIVO (SSE)
+// ==========================================
+let monitorEventSource = null;
+
+window.startSystemMonitor = function() {
+  if (monitorEventSource) return; // Ya está corriendo
+
+  const token = localStorage.getItem('token');
+  if (!token) return;
+
+  monitorEventSource = new EventSource(`/api/admin/monitor/stream?token=${encodeURIComponent(token)}`);
+  const term = document.getElementById('adminTerminal');
+
+  monitorEventSource.onmessage = function(event) {
+    try {
+      const data = JSON.parse(event.data);
+
+      if (data.type === 'METRICS') {
+        const ramBar = document.getElementById('monitorRamBar');
+        const ramText = document.getElementById('monitorRamText');
+        const cpuBar = document.getElementById('monitorCpuBar');
+        const cpuText = document.getElementById('monitorCpuText');
+        
+        if (ramBar && ramText) {
+            ramBar.style.width = data.ram + '%';
+            ramText.innerText = data.ram + '%';
+            ramBar.style.background = data.ram > 85 ? '#ef4444' : '#8b5cf6';
+        }
+
+        if (cpuBar && cpuText) {
+            cpuBar.style.width = data.cpu + '%';
+            cpuText.innerText = data.cpu + '%';
+            cpuBar.style.background = data.cpu > 80 ? '#ef4444' : '#f59e0b';
+        }
+        return;
+      }
+
+      // Terminal Logs
+      if (term) {
+          const time = new Date(data.date || Date.now()).toLocaleTimeString('es-DO');
+          const div = document.createElement('div');
+          div.style.marginBottom = '8px';
+          div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+          div.style.paddingBottom = '5px';
+          
+          const typeSpan = document.createElement('span');
+          typeSpan.style.color = data.color || '#e2e8f0';
+          typeSpan.style.fontWeight = 'bold';
+          typeSpan.innerText = `[${data.type}] `;
+          
+          const contentSpan = document.createElement('span');
+          contentSpan.innerHTML = `[${time}] <b style="color:#f8fafc;">${data.title||''}</b><br><span style="color:#cbd5e1; display:inline-block; margin-top:3px;">${data.details || data.msg || ''}</span>`;
+          
+          div.appendChild(typeSpan);
+          div.appendChild(contentSpan);
+          term.appendChild(div);
+
+          // Limitar a 100 lineas
+          if (term.children.length > 100) {
+            term.removeChild(term.children[0]);
+          }
+          
+          // Auto-scroll
+          term.scrollTop = term.scrollHeight;
+      }
+    } catch(e) {
+      console.error("Monitor parse error", e);
+    }
+  };
+
+  monitorEventSource.onerror = function() {
+    if (term) {
+        const div = document.createElement('div');
+        div.style.color = '#ef4444';
+        div.innerText = '> Conexión con el servidor perdida. Reconectando...';
+        term.appendChild(div);
+    }
+  };
 };
