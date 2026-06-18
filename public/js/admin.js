@@ -1321,29 +1321,36 @@ window.startSystemMonitor = function() {
       if (term) {
           const time = new Date(data.date || Date.now()).toLocaleTimeString('es-DO');
           const div = document.createElement('div');
-          div.style.marginBottom = '8px';
+          div.style.padding = '4px 0';
           div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-          div.style.paddingBottom = '5px';
+          div.style.whiteSpace = 'nowrap';
+          div.style.overflow = 'hidden';
+          div.style.textOverflow = 'ellipsis';
           
+          const timeSpan = document.createElement('span');
+          timeSpan.style.color = '#94a3b8';
+          timeSpan.innerText = `[${time}] `;
+
           const typeSpan = document.createElement('span');
           typeSpan.style.color = data.color || '#e2e8f0';
           typeSpan.style.fontWeight = 'bold';
           typeSpan.innerText = `[${data.type}] `;
           
           const contentSpan = document.createElement('span');
-          contentSpan.innerHTML = `[${time}] <b style="color:#f8fafc;">${data.title||''}</b><br><span style="color:#cbd5e1; display:inline-block; margin-top:3px;">${data.details || data.msg || ''}</span>`;
+          const sep = '<span style="color:#475569; margin:0 8px;">|</span>';
+          contentSpan.innerHTML = `${sep}<b style="color:#f8fafc;">${data.title||''}</b>${sep}<span style="color:#cbd5e1;">${data.details || data.msg || ''}</span>`;
           
+          div.appendChild(timeSpan);
           div.appendChild(typeSpan);
           div.appendChild(contentSpan);
-          term.appendChild(div);
-
-          // Limitar a 100 lineas
-          if (term.children.length > 100) {
-            term.removeChild(term.children[0]);
-          }
           
-          // Auto-scroll
-          term.scrollTop = term.scrollHeight;
+          // Insertar arriba en vez de abajo
+          term.insertBefore(div, term.firstChild);
+
+          // Limitar a 100 lineas (eliminar la última porque ahora la más vieja está abajo)
+          if (term.children.length > 100) {
+            term.removeChild(term.lastChild);
+          }
       }
     } catch(e) {
       console.error("Monitor parse error", e);
