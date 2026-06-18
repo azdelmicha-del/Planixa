@@ -166,8 +166,11 @@ module.exports = function (app) {
                 }
             } 
             
-            // Siempre agregarlo a su conversación web principal para que quede registro
-            const activeConv = await getDb().collection('conversations').find({ userId }).sort({ createdAt: -1 }).limit(1).toArray();
+            // Siempre agregarlo a su conversación principal para que quede registro
+            let query = { userId };
+            if (user.phone) query.is_whatsapp = true; // Si es usuario de WA, buscar su conv de WA
+            const activeConv = await getDb().collection('conversations').find(query).sort({ createdAt: -1 }).limit(1).toArray();
+            
             if (activeConv && activeConv.length > 0) {
                 await getDb().collection('conversations').updateOne(
                     { _id: activeConv[0]._id },
@@ -177,12 +180,15 @@ module.exports = function (app) {
                     }
                 );
             } else {
-                await getDb().collection('conversations').insertOne({
+                let insertDoc = {
                     userId: userId,
                     createdAt: new Date(),
+                    title: user.phone ? 'WhatsApp (Admin)' : 'Soporte Web',
                     lastMsg: `[Admin]: ${message}`,
                     messages: [{ role: 'assistant', content: `[Admin]: ${message}`, timestamp: new Date() }]
-                });
+                };
+                if (user.phone) insertDoc.is_whatsapp = true;
+                await getDb().collection('conversations').insertOne(insertDoc);
             }
             
             res.json({ success: true });
