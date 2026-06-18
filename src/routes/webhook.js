@@ -303,6 +303,20 @@ NUNCA escribas la planificación como texto plano.\n`;
                     }
                 }
 
+                // --- INYECCIÓN DE EMERGENCIA PARA ESPECIALISTAS ---
+                // Si es un especialista pero falló la detección del formato exacto, le inyectamos la regla genérica
+                // para que sepa cómo generar documentos y no invente enlaces de descarga.
+                const isSpecialistWorkCheck = selectedPrompt && defaultPrompt && selectedPrompt._id.toString() !== defaultPrompt._id.toString();
+                if (isSpecialistWorkCheck && !hasFormat) {
+                    let fallbackPriority = `INSTRUCCIÓN PRIORITARIA DEL SISTEMA: Eres un Especialista. Si tienes toda la información requerida y el usuario confirma la generación del documento, DEBES responder SOLO con este bloque y NADA MÁS:
+[GENERATE_WORD]
+\`\`\`json
+{ "tema": "...", "grado": "...", "area": "...", "objetivos": "..." }
+\`\`\`
+NUNCA generes enlaces web de descarga como [Descargar Documento](#). Usa estrictamente la etiqueta [GENERATE_WORD] con el JSON para entregar la planificación.\n`;
+                    MINERD_SYSTEM_PROMPT = fallbackPriority + '\n\n---\n\n' + MINERD_SYSTEM_PROMPT;
+                }
+
             } catch (err) {
                 console.error('Error en AI Router', err);
             }
