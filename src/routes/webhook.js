@@ -756,8 +756,8 @@ Responde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
                 waReply = waReply.replace(/^##\s+/gm, '*');
                 waReply = waReply.replace(/^#\s+/gm, '*');
                 
-                // Dividir el mensaje por el separador ||| para enviarlo en burbujas separadas
-                const messages = waReply.split(/\|\|\|/g).map(m => m.trim()).filter(m => m.length > 0);
+                // Dividir el mensaje por el separador ||| o por doble salto de línea para enviarlo en burbujas separadas
+                const messages = waReply.split(/(?:\|\|\||\n\n)/g).map(m => m.trim()).filter(m => m.length > 0);
                 
                 for (let i = 0; i < messages.length; i++) {
                     const msgText = messages[i];
