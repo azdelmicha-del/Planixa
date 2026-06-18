@@ -167,8 +167,7 @@ module.exports = function (app) {
                 // NUEVA ARQUITECTURA: ORQUESTADOR MAESTRO (PLANIXA ASISTENTE)
                 // ══════════════════════════════════════════════════════════
                 
-                profileWatcher(); // Ejecutar extracción de perfil de fondo
-
+                // Ejecutar extracción de perfil de fondo (implementado en el prompt de sistema)
                 if (!defaultPrompt) {
                     console.error("No hay prompts configurados. Creando prompt de emergencia.");
                     defaultPrompt = { content: 'Eres Planixa Asistente, un IA experto dominicano.', _id: 'default_emergency_id' };
