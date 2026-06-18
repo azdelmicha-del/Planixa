@@ -93,11 +93,6 @@ module.exports = function (app) {
                 const result = await getDb().collection('users').insertOne({ phone: from, password: hashed, name: '', grade: '', area: '', school: '', role: 'teacher', is_admin: false, plan: 'trial', plan_expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), plans_count: 0, created_at: new Date() });
                 userId = result.insertedId.toString();
                 user = await getDb().collection('users').findOne({ _id: new mongoose.Types.ObjectId(userId) });
-                const welcomeReply = '¡Hola, profe! 🤖 \n\nA partir de hoy voy a ser tu **Planixa Asistente**.\n\nPuedo ayudarte a crear unidades, secuencias, planificaciones diarias, rúbricas, evaluaciones y mucho más.\n\nAntes de empezar, cuéntame:\n📌 ¿Cuál es tu nombre?\n📌 ¿Qué grado y área trabajas normalmente?';
-                // Guardar respuesta de bienvenida en el historial del admin
-                await getDb().collection('client_messages').insertOne({ phone: from, message: welcomeReply, direction: 'outgoing', employeeId: null, employeeName: 'Bot WhatsApp', createdAt: new Date() });
-                await sendWhatsAppButtons(from, welcomeReply, ['¡Hola! 👋', 'Ver mis planes 📂']);
-                return;
             }
             userId = user._id.toString();
 
@@ -122,55 +117,8 @@ module.exports = function (app) {
                 }
             }
 
-            if (!user.name) {
-                const parsePrompt = `Extrae el nombre del profesor, el grado, el área/materia y el centro educativo (si lo menciona) del siguiente texto. Responde ÚNICAMENTE con un JSON válido usando estas claves: "name", "grade", "area", "school". Si falta algo, déjalo vacío ("").\nTexto: "${text}"`;
-                try {
-                    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-                        body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: parsePrompt }], max_tokens: 150, temperature: 0 })
-                    });
-                    if (r.ok) {
-                        const d = await r.json();
-                        if (d.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Extraer Nombre', 'gpt-4o-mini', d.usage);
-                        const parsedStr = d.choices[0].message.content.trim();
-                        const jsonMatch = parsedStr.match(/\{[\s\S]*?\}/);
-                        if (jsonMatch) {
-                            const data = JSON.parse(jsonMatch[0]);
-                            await getDb().collection('users').updateOne({ _id: user._id }, { $set: { 
-                                name: data.name || text.slice(0, 50), 
-                                grade: data.grade || '', 
-                                area: data.area || '', 
-                                school: data.school || '' 
-                            } });
-                        } else {
-                            await getDb().collection('users').updateOne({ _id: user._id }, { $set: { name: text.slice(0, 50) } });
-                        }
-                    } else {
-                        await getDb().collection('users').updateOne({ _id: user._id }, { $set: { name: text.slice(0, 50) } });
-                    }
-                } catch(e) {
-                    await getDb().collection('users').updateOne({ _id: user._id }, { $set: { name: text.slice(0, 50) } });
-                }
-
-                const confirmReply = '¡Excelente profe! Ya he guardado tus datos.\n\n¿Quieres comenzar con una planificación diaria? ¿O prefieres una Unidad o Secuencia?';
-                // Guardar el intercambio de recoleccion de nombre en historial y conversación
-                await getDb().collection('client_messages').insertOne({ phone: from, message: confirmReply, direction: 'outgoing', employeeId: null, employeeName: 'Bot WhatsApp', createdAt: new Date() });
-                const now = new Date();
-                await getDb().collection('conversations').insertOne({
-                    userId,
-                    is_whatsapp: true,
-                    title: 'WhatsApp: ' + now.toLocaleDateString('es-DO'),
-                    messages: [
-                        { role: 'user', content: text, timestamp: now },
-                        { role: 'assistant', content: confirmReply, timestamp: new Date() }
-                    ],
-                    createdAt: now,
-                    pdfGenerated: false
-                });
-                await sendWhatsAppMessage(from, confirmReply);
-                return;
-            }
+            // Eliminado el bloque hardcoded de recolección de nombre.
+            // ProfileWatcher se encarga silenciosamente de la extracción de perfil, y Planixa_Principal de la interacción.
 
             // --- 1. MEMORIA DE WHATSAPP (AMNESIA FIX) ---
             const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
