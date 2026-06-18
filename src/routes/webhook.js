@@ -634,7 +634,7 @@ Responde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
             await getDb().collection('client_messages').insertOne({ phone: from, message: reply, direction: 'outgoing', employeeId: null, employeeName: 'Bot WhatsApp', createdAt: new Date() });
 
             // --- 2. ENTREGA DE WORDS POR WHATSAPP ---
-            if (reply.includes('[GENERATE_WORD]')) {
+            if (reply.includes('[GENERATE_WORD]') || reply.includes('[GENERATE_DOCX]')) {
                 try {
                     let jsonData = {};
                     const jsonMatch = reply.match(/```json\s*(\{[\s\S]*?\})\s*```/);
