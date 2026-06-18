@@ -101,9 +101,22 @@ module.exports = function (app) {
             if (msg) update.$push = { messages: { role: 'user', content: msg, timestamp: new Date() } };
             if (reply) update.$push = { messages: { role: 'assistant', content: reply, timestamp: new Date() } };
 
-            await getDb().collection('conversations').updateOne({ _id: convId, userId }, update);
+            const result = await getDb().collection('conversations').updateOne({ _id: convId, userId }, update);
 
-            if (req.body.title) {
+            if (result.matchedCount === 0) {
+                // La conversación fue borrada (ej. por el admin), recrearla dinámicamente
+                const doc = {
+                    _id: convId,
+                    userId,
+                    title: req.body.title || 'Planificación restaurada',
+                    messages: [],
+                    createdAt: new Date(),
+                    pdfGenerated: false
+                };
+                if (msg) doc.messages.push({ role: 'user', content: msg, timestamp: new Date() });
+                if (reply) doc.messages.push({ role: 'assistant', content: reply, timestamp: new Date() });
+                await getDb().collection('conversations').insertOne(doc);
+            } else if (req.body.title) {
                 await getDb().collection('conversations').updateOne({ _id: convId, userId }, { $set: { title: String(req.body.title).trim().slice(0, 100) } });
             }
 

@@ -201,8 +201,8 @@ module.exports = function (app) {
                 const prompts = await getDb().collection('prompts').find({}).toArray();
                 const formats = await getDb().collection('doc_formats').find({}).toArray();
                 
-                // Buscar explícitamente "Planixa Principal" como el por defecto
-                let defaultPrompt = prompts.find(p => p.name && p.name.trim().toLowerCase() === 'planixa principal') || (prompts.length > 0 ? prompts[0] : null);
+                // Buscar explícitamente "Planixa Principal" como el por defecto (soporta guiones bajos)
+                let defaultPrompt = prompts.find(p => p.name && p.name.replace(/_/g, ' ').trim().toLowerCase() === 'planixa principal') || (prompts.length > 0 ? prompts[0] : null);
                 let selectedPrompt = defaultPrompt;
 
                 let routerPromise = null;
