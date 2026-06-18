@@ -154,6 +154,8 @@ module.exports = function (app) {
             let defaultPrompt = null;
             let selectedPrompt = null;
             let reply = '';
+            let finalJsonFromSpecialist = null;
+            let finalSpecIdUsed = null;
             
             try {
                 // Fetch prompts
@@ -196,7 +198,7 @@ Eres el encargado de interactuar con el profesor y coordinar el trabajo.
 1. REGLA DE CLARIFICACIÓN: Si el profesor hace un comentario general, pide ayuda vaga o dice un tema (ej. "tengo que dar fracciones mañana" o "ayúdame con una clase"), NO adivines qué documento quiere ni uses herramientas. DEBES preguntarle primero de forma natural: "¿Qué te gustaría armar profe? ¿Una planificación diaria, una unidad, una rúbrica, o solo quieres ideas?".
 2. DELEGAR AL BACK-OFFICE: SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la herramienta "consultar_especialista" pasando el ID adecuado y todas las instrucciones necesarias. NO intentes redactar la estructura técnica tú mismo.
 3. AUDITAR Y ENTREGAR: Una vez que el especialista te devuelva la estructura cruda, audítala. Si está correcta, preséntala al profesor de manera amigable (usa el separador ||| para dividir tu saludo del contenido técnico).
-4. GENERACIÓN DE DOCUMENTO: Si el documento final requiere exportarse a Word, agrega al final de tu mensaje la etiqueta [GENERATE_DOCX] o [GENERATE_WORD] y el bloque \`\`\`json con los datos requeridos. NUNCA inventes enlaces de descarga web [Descargar](#).`;
+4. GENERACIÓN DE DOCUMENTO: Si auditas un trabajo técnico y está listo, agrega obligatoriamente al final de tu mensaje la etiqueta [GENERATE_DOCX] para imprimir el archivo. NUNCA inventes enlaces de descarga web [Descargar](#).`;
 
                 const systemWithRefs = MINERD_SYSTEM_PROMPT + refBlock;
                 const messages = [
@@ -252,6 +254,7 @@ Eres el encargado de interactuar con el profesor y coordinar el trabajo.
                                 const args = JSON.parse(toolCall.function.arguments);
                                 const specId = args.especialista_id;
                                 const specInst = args.instrucciones_detalladas;
+                                finalSpecIdUsed = specId;
                                 
                                 const specPromptDoc = prompts.find(p => p._id.toString() === specId);
                                 if (specPromptDoc) {
@@ -276,6 +279,10 @@ Eres el encargado de interactuar con el profesor y coordinar el trabajo.
                                         const sData = await specRes.json();
                                         if (sData.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Especialista Back', 'gpt-4o', sData.usage);
                                         specResultText = sData.choices[0].message.content;
+                                        
+                                        // Extraer JSON directamente del especialista para no perderlo
+                                        const jsonMatch = specResultText.match(/```json\s*(\{[\s\S]*?\})\s*```/) || specResultText.match(/(\{[\s\S]*?\})/);
+                                        if (jsonMatch) finalJsonFromSpecialist = jsonMatch[1];
                                     }
 
                                     messages.push({
@@ -351,7 +358,7 @@ Eres el encargado de interactuar con el profesor y coordinar el trabajo.
                 await getDb().collection('users').updateOne({ _id: user._id }, { $set: { preferences: currentPrefs } });
             }
 
-            if ((reply.includes('[GENERATE_PDF]') || reply.includes('[GENERATE_WORD]')) && user.plan !== 'lifetime' && !user.is_admin) {
+            if ((reply.includes('[GENERATE_PDF]') || reply.includes('[GENERATE_WORD]') || reply.includes('[GENERATE_DOCX]')) && user.plan !== 'lifetime' && !user.is_admin) {
                 await getDb().collection('users').updateOne({ _id: user._id }, { $inc: { plans_count: 1 } });
             }
 
@@ -392,11 +399,17 @@ Eres el encargado de interactuar con el profesor y coordinar el trabajo.
             if (reply.includes('[GENERATE_WORD]') || reply.includes('[GENERATE_DOCX]')) {
                 try {
                     let jsonData = {};
-                    const jsonMatch = reply.match(/```json\s*(\{[\s\S]*?\})\s*```/) || reply.match(/(\{[\s\S]*?\})/);
-                    if (jsonMatch) {
+                    if (finalJsonFromSpecialist) {
                         try {
-                            jsonData = JSON.parse(jsonMatch[1]);
-                        } catch(e) { console.error('[WORD GEN] JSON parse error:', e.message); }
+                            jsonData = JSON.parse(finalJsonFromSpecialist);
+                        } catch(e) { console.error('[WORD GEN] Error parsing direct JSON:', e.message); }
+                    } else {
+                        const jsonMatch = reply.match(/```json\s*(\{[\s\S]*?\})\s*```/) || reply.match(/(\{[\s\S]*?\})/);
+                        if (jsonMatch) {
+                            try {
+                                jsonData = JSON.parse(jsonMatch[1]);
+                            } catch(e) { console.error('[WORD GEN] JSON parse error:', e.message); }
+                        }
                     }
 
                     let fmtId = (activeConv && activeConv.pendingFormatId) || req.pendingFormatId;
