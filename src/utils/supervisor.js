@@ -15,12 +15,12 @@ async function callSupervisor(userId, systemPrompt, userRequest, draftResponse) 
         
         // Por defecto apagado para ahorrar costos, el admin debe activarlo
         if (settings?.supervisor_enabled !== true) {
-            return draftResponse;
+            return { text: draftResponse, status: 'off' };
         }
         
         // Evaluar solo respuestas largas
         if (draftResponse.length < 400 && !draftResponse.includes('[GENERATE_')) {
-            return draftResponse;
+            return { text: draftResponse, status: 'bypassed_length' };
         }
 
         const supervisorPrompt = `Eres un SUPERVISOR DE CALIDAD estricto. Tu tarea es revisar el borrador de respuesta que un Asistente IA ha generado para un profesor.
@@ -62,21 +62,23 @@ INSTRUCCIONES DE SUPERVISIÓN:
             const evaluation = d?.choices?.[0]?.message?.content?.trim();
             
             if (evaluation && evaluation.toUpperCase() !== 'APROBADO' && !evaluation.toUpperCase().includes('APROBADO')) {
+                const cleaned = evaluation;
                 // Registrar la corrección
                 await db.collection('supervisor_logs').insertOne({
                     userId: userId,
                     userRequest: userRequest,
                     draftResponse: draftResponse,
-                    correctedResponse: evaluation,
+                    correctedResponse: cleaned,
                     date: new Date()
                 });
-                return evaluation;
+                return { text: cleaned, status: 'corrected' };
             }
         }
-        return draftResponse;
-    } catch (e) {
-        console.error("Error en Supervisor IA:", e);
-        return draftResponse;
+        
+        return { text: draftResponse, status: 'approved' };
+    } catch (err) {
+        console.error("Supervisor IA Error:", err);
+        return { text: draftResponse, status: 'error' };
     }
 }
 

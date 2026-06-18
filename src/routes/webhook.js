@@ -514,7 +514,7 @@ Responde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
                 }
 
                 // 2. Supervisor IA (El supervisor tiene reglas para respetar JSON)
-                let supervisedReply = await callSupervisor(user._id.toString(), systemWithRefs, text, specReply);
+                let supervisedReply = (await callSupervisor(user._id.toString(), systemWithRefs, text, specReply)).text;
 
                 // 3. Planixa Principal (Envuelve el mensaje amigablemente)
                 const principalSystemPrompt = defaultPrompt.content + `\n\nDATOS DEL PROFESOR:\nNombre: ${user.name || 'Profe'}\nGrado: ${user.grade || 'No especificado'}\n\nERES LA SECRETARIA. Un Especialista ha generado el siguiente trabajo estructural para el profesor:\n---\n${supervisedReply}\n---\n\nTu tarea es entregarle esto al profesor de forma muy amable y profesional. \nREGLA DE ORO: DEBES incluir EXACTAMENTE el mismo bloque [GENERATE_WORD] con su JSON intacto al final de tu mensaje. NO MODIFIQUES EL JSON, SOLO AGREGA TU SALUDO AL PRINCIPIO. Usa el separador ||| entre tu charla y el documento.`;
@@ -551,12 +551,17 @@ Responde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
                 }
 
                 // Supervisor opcional
-                const originalReply = reply;
-                reply = await callSupervisor(user._id.toString(), systemWithRefs, text, reply);
-                if (reply !== originalReply) {
+                const supResult = await callSupervisor(user._id.toString(), systemWithRefs, text, reply);
+                reply = supResult.text;
+                
+                if (supResult.status === 'corrected') {
                     req.app.emit('system_log', { type: 'SUPERVISOR', color: '#ef4444', title: 'Supervisor IA Corrigió', details: 'Respuesta original modificada por el supervisor.' });
+                } else if (supResult.status === 'approved') {
+                    req.app.emit('system_log', { type: 'SUPERVISOR', color: '#10b981', title: 'Supervisor IA Aprobó', details: 'Respuesta perfecta.' });
+                } else if (supResult.status === 'bypassed_length') {
+                    req.app.emit('system_log', { type: 'SUPERVISOR', color: '#64748b', title: 'Supervisor Omitido', details: 'Mensaje corto o no requiere revisión.' });
                 } else {
-                    req.app.emit('system_log', { type: 'SUPERVISOR', color: '#10b981', title: 'Supervisor IA Aprobó', details: 'Respuesta generada correctamente.' });
+                    req.app.emit('system_log', { type: 'SUPERVISOR', color: '#64748b', title: 'Supervisor Apagado', details: 'El sistema de calidad está desactivado.' });
                 }
             }
 

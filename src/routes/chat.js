@@ -236,7 +236,7 @@ Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el co
                     }
 
                     // 2. Supervisor IA
-                    let supervisedReply = await callSupervisor(userId, systemWithRefs, message, specReply);
+                    let supervisedReply = (await callSupervisor(userId, systemWithRefs, message, specReply)).text;
 
                     // 3. Planixa Principal (Entrega Web)
                     const principalSystemPrompt = defaultPrompt.content + `\n\nERES LA SECRETARIA. Un Especialista generó este trabajo:\n---\n${supervisedReply}\n---\nEntrégaselo al profesor amable y profesionalmente en la interfaz web. \nREGLA DE ORO: DEBES incluir EXACTAMENTE el mismo bloque [GENERATE_WORD] o [GENERATE_PDF] con su estructura intacta al final de tu mensaje.`;
@@ -267,7 +267,7 @@ Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el co
                         if (d.usage) await logApiUsage(userId, 'Web: Mensaje Principal', 'gpt-4o-mini', d.usage);
                         reply = d?.choices?.[0]?.message?.content?.trim();
                     }
-                    reply = await callSupervisor(userId, systemWithRefs, message, reply);
+                    reply = (await callSupervisor(userId, systemWithRefs, message, reply)).text;
                 }
             } catch (e) {
                 console.error("OpenAI Error:", e);
