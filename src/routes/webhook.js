@@ -83,7 +83,7 @@ module.exports = function (app) {
 
             if (!text) return;
 
-            req.app.emit('system_log', { type: 'WHATSAPP_IN', color: '#25D366', title: 'Mensaje Recibido', details: `De: ${from} | "${text.substring(0, 100)}"` });
+            req.app.emit('system_log', { type: 'WHATSAPP_IN', color: '#25D366', title: 'Mensaje Recibido', details: `De: ${from}` });
 
             console.log('WhatsApp de', from, ':', text);
             await getDb().collection('client_messages').insertOne({ phone: from, message: text, direction: 'incoming', employeeId: null, employeeName: null, createdAt: new Date() });
@@ -780,7 +780,7 @@ Responde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
 };
 
 async function sendWhatsAppMessage(to, text, app) {
-    if (app) app.emit('system_log', { type: 'WHATSAPP_OUT', color: '#25D366', title: 'Mensaje Enviado', details: `Para: ${to} | "${text.substring(0, 100)}"` });
+    if (app) app.emit('system_log', { type: 'WHATSAPP_OUT', color: '#25D366', title: 'Mensaje Enviado', details: `Para: ${to}` });
     
     const WA_TOKEN = process.env.WA_TOKEN;
     const WA_PHONE_ID = process.env.WA_PHONE_ID;
