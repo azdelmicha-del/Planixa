@@ -103,7 +103,7 @@ module.exports = function (app) {
             const maxPlans = limits[user.plan] || 5;
             const currentCount = user.plans_count || 0;
 
-            if (user.plan !== 'lifetime' && !user.is_admin) {
+            if (user.plan !== 'lifetime' && user.plan !== 'exempt' && !user.is_admin) {
                 const now = new Date();
                 const expires = user.plan_expires ? new Date(user.plan_expires) : null;
                 const isTrial = user.plan === 'trial';
@@ -114,7 +114,7 @@ module.exports = function (app) {
 
                 if (blockReason) {
                     const payMsg = `Hola profe. ${blockReason}\n\nPara seguir ahorrando horas de trabajo con **Planixa Asistente**, renueva tu acceso:\n\n💳 **Azul / CardNet:** [Aquí tu link Azul]\n💳 **PayPal:** [Aquí tu link PayPal]\n\nSelecciona el método que prefieras en los enlaces arriba. Si pagas por transferencia bancaria (Banreservas/Popular), responde este mensaje para enviarte los datos.`;
-                    await sendWhatsAppMessage(from, payMsg);
+                    await sendWhatsAppMessage(from, payMsg, req.app);
                     return;
                 }
             }
