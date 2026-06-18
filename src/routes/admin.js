@@ -42,7 +42,7 @@ module.exports = function (app) {
         if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
         try {
             const db = getDb();
-            const stats = await db.command({ dbStats: 1 });
+            const stats = await db.db.command({ dbStats: 1 });
             res.json(stats);
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
