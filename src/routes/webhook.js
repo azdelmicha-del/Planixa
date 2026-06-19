@@ -282,9 +282,17 @@ module.exports = function (app) {
                                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: 'Delegando al Back-Office', details: specPromptDoc.name });
                                     
                                     let dynamicInstructions = '\n\n### REGLA CRÍTICA: ESTRUCTURAS JSON REQUERIDAS POR PLANTILLA\nEl Orquestador es un sistema automatizado que SOLO puede leer formato JSON. Es OBLIGATORIO que entregues todo el contenido de la planificación dentro de un bloque ```json al final de tu respuesta.\nDependiendo de la plantilla que elijas, DEBES estructurar tu JSON exactamente con las siguientes variables:\n';
-                                    for (const f of formats) {
-                                        if (f.ia_instructions) {
-                                            dynamicInstructions += `\n**Si usas la plantilla ${f.type}**, tu JSON DEBE incluir estas llaves:\n${f.ia_instructions}\n`;
+                                    
+                                    if (plantillaNombre) {
+                                        const exactFormat = formats.find(f => f.type === plantillaNombre);
+                                        if (exactFormat && exactFormat.ia_instructions) {
+                                            dynamicInstructions += `\n**Para la plantilla seleccionada (${exactFormat.type})**, tu JSON DEBE incluir estas llaves exactas:\n${exactFormat.ia_instructions}\n`;
+                                        }
+                                    } else {
+                                        for (const f of formats) {
+                                            if (f.ia_instructions) {
+                                                dynamicInstructions += `\n**Si usas la plantilla ${f.type}**, tu JSON DEBE incluir estas llaves:\n${f.ia_instructions}\n`;
+                                            }
                                         }
                                     }
                                     dynamicInstructions += '\n\nIMPORTANTE: ¡Si no incluyes el bloque ```json con los datos, el sistema fallará y el profesor no recibirá su documento! NO DEVUELVAS TEXTO DE RELLENO, SOLO EL INFORME Y EL JSON.';
