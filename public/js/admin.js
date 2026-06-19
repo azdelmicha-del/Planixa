@@ -1025,12 +1025,24 @@ window.initFinancePanel = function() {
         // Evento de cambio
         filterSelect.onchange = (e) => {
             const val = e.target.value;
-            if (val === 'all') {
-                costDisplay.innerHTML = `Gastos en este modelo: <span style="color:#ef4444; font-weight:bold;">$0.00</span> | Tokens: <span style="color:#3b82f6; font-weight:bold;">0</span>`;
-                return;
+            let costVal = 0;
+            let tokenVal = 0;
+            if (val !== 'all') {
+                const modelData = window.financeCostsByModel.find(m => m._id === val) || { cost: 0, tokens: 0 };
+                costVal = modelData.cost;
+                tokenVal = modelData.tokens;
             }
-            const modelData = window.financeCostsByModel.find(m => m._id === val) || { cost: 0, tokens: 0 };
-            costDisplay.innerHTML = `Gastos en este modelo: <span style="color:#ef4444; font-weight:bold;">$${modelData.cost.toFixed(4)}</span> | Tokens: <span style="color:#3b82f6; font-weight:bold;">${modelData.tokens.toLocaleString()}</span>`;
+            
+            costDisplay.innerHTML = `
+              <div style="display:flex; flex-direction:column;">
+                <span style="font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; font-weight:bold;">Costo Estimado</span>
+                <span style="color:#ef4444; font-size:24px; font-weight:900;">$${costVal.toFixed(4)}</span>
+              </div>
+              <div style="display:flex; flex-direction:column;">
+                <span style="font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; font-weight:bold;">Tokens Procesados</span>
+                <span style="color:#3b82f6; font-size:24px; font-weight:900;">${tokenVal.toLocaleString()}</span>
+              </div>
+            `;
         };
       }
       

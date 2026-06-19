@@ -50,14 +50,25 @@
     <button id="financeRefreshBtn" style="padding:6px 12px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); border-radius:6px; cursor:pointer; font-size:12px;">🔄 Actualizar</button>
   </div>
 
-  <div style="background:var(--card); padding:15px; border-radius:12px; border:1px solid var(--border); display:flex; gap:15px; align-items:center; flex-wrap:wrap;">
-    <span style="font-size:14px; font-weight:bold;">Filtrar Gastos por Modelo:</span>
-    <select id="financeModelFilter" style="padding:6px; border-radius:6px; background:var(--bg); border:1px solid var(--border); color:var(--text);">
-      <option value="all">Ver Todos</option>
-      <!-- Se llenará dinámicamente -->
-    </select>
-    <div id="financeModelCostDisplay" style="font-size:14px; color:var(--text-muted);">
-      Gastos en este modelo: <span style="color:#ef4444; font-weight:bold;">$0.00</span> | Tokens: <span style="color:#3b82f6; font-weight:bold;">0</span>
+  <div style="background:var(--card); padding:20px; border-radius:12px; border:1px solid var(--border); display:flex; gap:25px; align-items:center; flex-wrap:wrap;">
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <span style="font-size:14px; font-weight:bold; color:var(--text-light);">Filtrar Gastos por Modelo:</span>
+      <select id="financeModelFilter" style="padding:10px 15px; border-radius:8px; background:var(--bg); border:1px solid var(--border); color:var(--text); font-size:15px; font-weight:bold; cursor:pointer; min-width:200px; outline:none;">
+        <option value="all">📊 Ver Todos</option>
+        <!-- Se llenará dinámicamente -->
+      </select>
+    </div>
+    
+    <div id="financeModelCostDisplay" style="display:flex; gap:20px; border-left:2px solid var(--border); padding-left:25px; flex:1;">
+      <div style="display:flex; flex-direction:column;">
+        <span style="font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; font-weight:bold;">Costo Estimado</span>
+        <span style="color:#ef4444; font-size:24px; font-weight:900;">$0.0000</span>
+      </div>
+      <div style="display:flex; flex-direction:column;">
+        <span style="font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; font-weight:bold;">Tokens Procesados</span>
+        <span style="color:#3b82f6; font-size:24px; font-weight:900;">0</span>
+      </div>
+    </div>
     </div>
   </div>
 
