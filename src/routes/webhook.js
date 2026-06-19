@@ -146,7 +146,17 @@ module.exports = function (app) {
             const refDocs = await getDb().collection('references').find({ userId }).toArray();
             let refBlock = '';
             if (refDocs.length > 0) {
-                refBlock = '\n\nDOCUMENTOS DE REFERENCIA:\n' + refDocs.map(r => `📄 ${r.name}: ${(r.text||'').slice(0,2000)}`).join('\n---\n');
+                refBlock = '\n\nDOCUMENTOS DE REFERENCIA DEL DOCENTE:\n' + refDocs.map(r => `📄 ${r.name}: ${(r.text||'').slice(0,2000)}`).join('\n---\n');
+            }
+
+            const knowledgeItems = await getDb().collection('knowledge').find({}).toArray();
+            let globalKnowledgeBlock = '';
+            if (knowledgeItems && knowledgeItems.length > 0) {
+                globalKnowledgeBlock = '\n\n📚 BASE DE CONOCIMIENTOS OFICIAL (REGLAS Y DATOS GLOBALES OBLIGATORIOS):\n';
+                for (const item of knowledgeItems) {
+                    globalKnowledgeBlock += `\n[${item.title}]:\n${item.content}\n---\n`;
+                }
+                globalKnowledgeBlock += 'USA ESTA BASE DE CONOCIMIENTOS COMO FUENTE PRINCIPAL DE VERDAD. SI UN DATO ESTÁ AQUÍ, ES OFICIAL DEL MINERD.\n';
             }
 
             let MINERD_SYSTEM_PROMPT = `Eres "Planixa", asistente de planificación docente del MINERD. Responde en español dominicano.`;
@@ -177,30 +187,12 @@ module.exports = function (app) {
                 }
 
                 const availableSpecialists = prompts.filter(p => p._id.toString() !== defaultPrompt._id.toString());
-                const availableFormats = formats.map(f => f.type).join(', ');
+                const availableFormats = formats.map(f => f.name);
 
-                MINERD_SYSTEM_PROMPT = defaultPrompt.content + `
-                
-DATOS DEL PROFESOR:
-Nombre: ${user.name || 'Profe'}
-Grado: ${user.grade || 'No especificado'}
-Área: ${user.area || 'No especificada'}
-Centro Educativo: ${user.school || 'No especificado'}
+                MINERD_SYSTEM_PROMPT = defaultPrompt.content + 
+                                       `\n\n=== ESTADO DEL DOCENTE ===\nPerfil: ${user.name||'No especificado'}, Grado: ${user.grade||'No especificado'}, Área: ${user.area||'No especificada'}\n\n=== HERRAMIENTAS INTERNAS ===\nEspecialistas disponibles: ${availableSpecialists.map(s=>s.name).join(', ')}\nPlantillas disponibles: ${availableFormats.join(', ')}\n\n=== REGLA DE GENERACIÓN ===\n1. RECOLECTAR DATOS: Si no sabes grado, materia, tema o plantilla preferida, pregunta amablemente antes de avanzar.\n2. DELEGAR AL BACK-OFFICE: SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la herramienta "consultar_especialista" pasando el ID adecuado y todas las instrucciones necesarias. NO intentes redactar la estructura técnica tú mismo.\n3. AUDITAR Y ENTREGAR: Una vez que el especialista te devuelva la estructura cruda, audítala. Si está correcta, preséntala al profesor de manera amigable (usa el separador ||| para dividir tu saludo del contenido técnico).\n4. GENERACIÓN DE DOCUMENTO: Si auditas un trabajo técnico y está listo, agrega obligatoriamente al final de tu mensaje la etiqueta [GENERATE_DOCX] para imprimir el archivo. NUNCA inventes enlaces de descarga web [Descargar](#).`;
 
-REGLA DE PERFIL: Si el profesor expresa gusto/preferencia, usa la etiqueta [MEMORIA: pref]. Si el profesor dice su nombre/grado/área/escuela, usa la etiqueta [UPDATE_PROFILE: {"name":"...", "grade":"..."}].
-
-PLANTILLAS DISPONIBLES: ${availableFormats}.
-ESPECIALISTAS DISPONIBLES (BACK-OFFICE):
-${availableSpecialists.map(p => `- ID: ${p._id.toString()} | ${p.name} | Cuándo usar: ${p.description}`).join('\n')}
-
-TU ROL (EL ORQUESTADOR):
-Eres el encargado de interactuar con el profesor y coordinar el trabajo. 
-1. REGLA DE CLARIFICACIÓN: Si el profesor hace un comentario general, pide ayuda vaga o dice un tema (ej. "tengo que dar fracciones mañana" o "ayúdame con una clase"), NO adivines qué documento quiere ni uses herramientas. DEBES preguntarle primero de forma natural: "¿Qué te gustaría armar profe? ¿Una planificación diaria, una unidad, una rúbrica, o solo quieres ideas?".
-2. DELEGAR AL BACK-OFFICE: SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la herramienta "consultar_especialista" pasando el ID adecuado y todas las instrucciones necesarias. NO intentes redactar la estructura técnica tú mismo.
-3. AUDITAR Y ENTREGAR: Una vez que el especialista te devuelva la estructura cruda, audítala. Si está correcta, preséntala al profesor de manera amigable (usa el separador ||| para dividir tu saludo del contenido técnico).
-4. GENERACIÓN DE DOCUMENTO: Si auditas un trabajo técnico y está listo, agrega obligatoriamente al final de tu mensaje la etiqueta [GENERATE_DOCX] para imprimir el archivo. NUNCA inventes enlaces de descarga web [Descargar](#).`;
-
-                const systemWithRefs = MINERD_SYSTEM_PROMPT + refBlock;
+                const systemWithRefs = MINERD_SYSTEM_PROMPT + refBlock + globalKnowledgeBlock;
                 const messages = [
                     { role: 'system', content: systemWithRefs },
                     ...historyMessages,
@@ -273,7 +265,7 @@ Eres el encargado de interactuar con el profesor y coordinar el trabajo.
                                         body: JSON.stringify({
                                             model: 'gpt-4o', 
                                             messages: [
-                                                { role: 'system', content: specPromptDoc.content + refBlock + dynamicInstructions },
+                                                { role: 'system', content: specPromptDoc.content + refBlock + globalKnowledgeBlock + dynamicInstructions },
                                                 { role: 'user', content: specInst }
                                             ],
                                             max_tokens: 3500,
