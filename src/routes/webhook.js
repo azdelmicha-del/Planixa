@@ -453,7 +453,7 @@ module.exports = function (app) {
             await getDb().collection('client_messages').insertOne({ phone: from, message: reply, direction: 'outgoing', employeeId: null, employeeName: 'Bot WhatsApp', createdAt: new Date() });
 
             // --- 2. ENTREGA DE WORDS POR WHATSAPP ---
-            if (reply.includes('[GENERATE_WORD]') || reply.includes('[GENERATE_DOCX]')) {
+            if (reply.includes('[GENERATE_WORD]') || reply.includes('[GENERATE_DOCX]') || finalJsonFromSpecialist) {
                 try {
                     let jsonData = {};
                     if (finalJsonFromSpecialist) {
