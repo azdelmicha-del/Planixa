@@ -152,6 +152,7 @@ module.exports = function (app) {
             const knowledgeItems = await getDb().collection('knowledge').find({}).toArray();
             let globalKnowledgeBlock = '';
             if (knowledgeItems && knowledgeItems.length > 0) {
+                req.app.emit('system_log', { type: 'SISTEMA', color: '#8b5cf6', title: 'Consultando Conocimientos', details: 'Extrayendo base curricular del MINERD.' });
                 globalKnowledgeBlock = '\n\n📚 BASE DE CONOCIMIENTOS OFICIAL (REGLAS Y DATOS GLOBALES OBLIGATORIOS):\n';
                 for (const item of knowledgeItems) {
                     globalKnowledgeBlock += `\n[${item.title}]:\n${item.content}\n---\n`;
@@ -439,6 +440,8 @@ module.exports = function (app) {
                             const templatePath = path.join(PROJECT_ROOT, 'public', formatDoc.filePath);
                             const outDir = path.join(PROJECT_ROOT, 'public', 'downloads');
                             if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+                            req.app.emit('system_log', { type: 'SISTEMA', color: '#10b981', title: 'Generando Documento', details: `Inyectando datos en: ${formatDoc.name}` });
 
                             const outFilename = `Documento-${from}-${Date.now()}.docx`;
                             const outPath = path.join(outDir, outFilename);
