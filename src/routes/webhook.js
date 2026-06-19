@@ -252,7 +252,8 @@ module.exports = function (app) {
                                 const specInst = args.instrucciones_detalladas;
                                 finalSpecIdUsed = specId;
                                 
-                                const specPromptDoc = prompts.find(p => p._id.toString() === specId);
+                                // Buscar por nombre (como lo genera el LLM) o por ID (fallback)
+                                const specPromptDoc = prompts.find(p => p.name === specId || p._id.toString() === specId);
                                 if (specPromptDoc) {
                                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: 'Delegando al Back-Office', details: specPromptDoc.name });
                                     
