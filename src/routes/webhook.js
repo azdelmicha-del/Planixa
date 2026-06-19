@@ -157,8 +157,8 @@ module.exports = function (app) {
                 for (const item of knowledgeItems) {
                     globalKnowledgeBlock += `\n[${item.title}]:\n${item.content}\n---\n`;
                 }
-                if (globalKnowledgeBlock.length > 150000) {
-                    globalKnowledgeBlock = globalKnowledgeBlock.substring(0, 150000) + '\n...[CONTENIDO RECORTADO POR LÍMITE DE MEMORIA DEL SISTEMA]';
+                if (globalKnowledgeBlock.length > 50000) {
+                    globalKnowledgeBlock = globalKnowledgeBlock.substring(0, 50000) + '\n...[CONTENIDO RECORTADO POR LÍMITE DE MEMORIA DEL SISTEMA]';
                 }
                 globalKnowledgeBlock += '\nUSA ESTA BASE DE CONOCIMIENTOS COMO FUENTE PRINCIPAL DE VERDAD. SI UN DATO ESTÁ AQUÍ, ES OFICIAL DEL MINERD.\n';
             }
@@ -256,12 +256,13 @@ module.exports = function (app) {
                                 if (specPromptDoc) {
                                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: 'Delegando al Back-Office', details: specPromptDoc.name });
                                     
-                                    let dynamicInstructions = '\n\n### ESTRUCTURAS JSON REQUERIDAS POR PLANTILLA\nEl Orquestador necesita que entregues el resultado en formato JSON. Dependiendo de la plantilla que uses, DEBES generar tu respuesta OBLIGATORIAMENTE usando el formato JSON exacto correspondiente:\n';
+                                    let dynamicInstructions = '\n\n### REGLA CRÍTICA: ESTRUCTURAS JSON REQUERIDAS POR PLANTILLA\nEl Orquestador es un sistema automatizado que SOLO puede leer formato JSON. Es OBLIGATORIO que entregues todo el contenido de la planificación dentro de un bloque ```json al final de tu respuesta.\nDependiendo de la plantilla que elijas, DEBES estructurar tu JSON exactamente con las siguientes variables:\n';
                                     for (const f of formats) {
                                         if (f.ia_instructions) {
-                                            dynamicInstructions += `\n**Si usas ${f.name}**, incluye ESTAS variables en tu JSON:\n${f.ia_instructions}\n`;
+                                            dynamicInstructions += `\n**Si usas la plantilla ${f.name}**, tu JSON DEBE incluir estas llaves:\n${f.ia_instructions}\n`;
                                         }
                                     }
+                                    dynamicInstructions += '\n\nIMPORTANTE: ¡Si no incluyes el bloque ```json con los datos, el sistema fallará y el profesor no recibirá su documento! NO DEVUELVAS TEXTO DE RELLENO, SOLO EL INFORME Y EL JSON.';
 
                                     const specRes = await fetch('https://api.openai.com/v1/chat/completions', {
                                         method: 'POST',
@@ -286,6 +287,10 @@ module.exports = function (app) {
                                         // Extraer JSON directamente del especialista para no perderlo
                                         const jsonMatch = specResultText.match(/```json\s*(\{[\s\S]*?\})\s*```/) || specResultText.match(/(\{[\s\S]*?\})/);
                                         if (jsonMatch) finalJsonFromSpecialist = jsonMatch[1];
+                                    } else {
+                                        const errText = await specRes.text();
+                                        console.error("Error API Especialista:", errText);
+                                        req.app.emit('system_log', { type: 'ERROR', color: '#ef4444', title: 'Error del Especialista', details: errText.slice(0, 150) });
                                     }
 
                                     messages.push({
