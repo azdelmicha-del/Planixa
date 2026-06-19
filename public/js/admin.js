@@ -983,6 +983,12 @@ window.initFinancePanel = function() {
       
       const balanceEl = document.getElementById('financeBalance');
       if (balanceEl) balanceEl.textContent = '$' + (data.balance || 0).toFixed(4);
+
+      const totalCostEl = document.getElementById('financeTotalCost');
+      if (totalCostEl) totalCostEl.textContent = '$' + (data.totalCost || 0).toFixed(4);
+
+      const totalTokensEl = document.getElementById('financeTotalTokens');
+      if (totalTokensEl) totalTokensEl.textContent = (data.totalTokens || 0).toLocaleString();
       
       const tbody = document.getElementById('financeLogsTableBody');
       if (!tbody) return;

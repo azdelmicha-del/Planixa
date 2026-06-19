@@ -6,10 +6,24 @@
 
   <div style="display:flex; flex-wrap:wrap; gap:20px;">
     <!-- Billetera -->
-    <div style="background:var(--card); padding:20px; border-radius:12px; border:1px solid var(--border); flex:1; min-width:250px; text-align:center;">
-      <h3 style="font-size:14px; color:var(--text-light); margin-bottom:10px;">Saldo Disponible Estimado</h3>
-      <div id="financeBalance" style="font-size:36px; font-weight:bold; color:var(--primary);">$0.00</div>
+    <div style="background:var(--card); padding:20px; border-radius:12px; border:1px solid var(--border); flex:1; min-width:200px; text-align:center;">
+      <h3 style="font-size:14px; color:var(--text-light); margin-bottom:10px;">Saldo Disponible</h3>
+      <div id="financeBalance" style="font-size:32px; font-weight:bold; color:var(--primary);">$0.00</div>
       <p style="font-size:12px; color:var(--text-muted); margin-top:5px;">En dólares (USD)</p>
+    </div>
+
+    <!-- Gastos Totales -->
+    <div style="background:var(--card); padding:20px; border-radius:12px; border:1px solid var(--border); flex:1; min-width:200px; text-align:center;">
+      <h3 style="font-size:14px; color:var(--text-light); margin-bottom:10px;">Gastos Totales</h3>
+      <div id="financeTotalCost" style="font-size:32px; font-weight:bold; color:#ef4444;">$0.00</div>
+      <p style="font-size:12px; color:var(--text-muted); margin-top:5px;">Histórico (USD)</p>
+    </div>
+
+    <!-- Tokens Totales -->
+    <div style="background:var(--card); padding:20px; border-radius:12px; border:1px solid var(--border); flex:1; min-width:200px; text-align:center;">
+      <h3 style="font-size:14px; color:var(--text-light); margin-bottom:10px;">Tokens Consumidos</h3>
+      <div id="financeTotalTokens" style="font-size:32px; font-weight:bold; color:#3b82f6;">0</div>
+      <p style="font-size:12px; color:var(--text-muted); margin-top:5px;">Totales procesados</p>
     </div>
 
     <!-- Controles -->

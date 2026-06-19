@@ -353,7 +353,21 @@ ${recentMessagesText || 'No hay mensajes recientes.'}
             const settings = await db.collection('settings').findOne({ _id: 'general' });
             const balance = settings?.api_balance || 0;
             const logs = await db.collection('api_usage').find({}).sort({ date: -1 }).limit(100).toArray();
-            res.json({ balance, logs });
+
+            // Agregar sumatorias totales
+            const aggregation = await db.collection('api_usage').aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        totalCost: { $sum: "$cost" },
+                        totalTokens: { $sum: "$total_tokens" }
+                    }
+                }
+            ]).toArray();
+
+            const totals = aggregation[0] || { totalCost: 0, totalTokens: 0 };
+
+            res.json({ balance, logs, totalCost: totals.totalCost, totalTokens: totals.totalTokens });
         } catch (err) {
             res.status(500).json({ error: err.message });
         }
