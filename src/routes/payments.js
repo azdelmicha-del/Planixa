@@ -1,6 +1,6 @@
 const express = require('express');
 const { getDb } = require('../db');
-const { authenticateToken, ensureAdmin } = require('../middleware/auth');
+const { authenticateToken, isAdmin } = require('../middleware/auth');
 
 module.exports = function(app) {
     const router = express.Router();
@@ -8,7 +8,8 @@ module.exports = function(app) {
     // ==========================================
     // ADMIN: Obtener Configuración de Pagos
     // ==========================================
-    router.get('/settings', authenticateToken, ensureAdmin, async (req, res) => {
+    router.get('/settings', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ success: false, message: 'Solo admin' });
         try {
             const db = getDb();
             const settings = await db.collection('settings').findOne({ type: 'payment_gateways' });
@@ -22,7 +23,8 @@ module.exports = function(app) {
     // ==========================================
     // ADMIN: Guardar Configuración de Pagos
     // ==========================================
-    router.post('/settings', authenticateToken, ensureAdmin, async (req, res) => {
+    router.post('/settings', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ success: false, message: 'Solo admin' });
         try {
             const db = getDb();
             const { paypal, azul, carnet, bank } = req.body;
@@ -100,7 +102,8 @@ module.exports = function(app) {
     // ==========================================
     // ADMIN: Obtener Transferencias Pendientes
     // ==========================================
-    router.get('/transfers', authenticateToken, ensureAdmin, async (req, res) => {
+    router.get('/transfers', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ success: false, message: 'Solo admin' });
         try {
             const db = getDb();
             const pending = await db.collection('manual_payments').find({ status: 'pending' }).sort({ created_at: -1 }).toArray();
@@ -113,7 +116,8 @@ module.exports = function(app) {
     // ==========================================
     // ADMIN: Aprobar/Rechazar Transferencia
     // ==========================================
-    router.post('/transfers/action', authenticateToken, ensureAdmin, async (req, res) => {
+    router.post('/transfers/action', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ success: false, message: 'Solo admin' });
         try {
             const db = getDb();
             const { payment_id, action } = req.body; // action: 'approve', 'reject'
