@@ -206,7 +206,7 @@ module.exports = function (app) {
                 }).join('\n');
 
                 MINERD_SYSTEM_PROMPT = defaultPrompt.content + 
-                                       `\n\n=== ESTADO DEL DOCENTE ===\nPerfil: ${user.name||'No especificado'}, Grado: ${user.grade||'No especificado'}, Área: ${user.area||'No especificada'}\n\n=== HERRAMIENTAS INTERNAS ===\nEspecialistas disponibles:\n${availableSpecialistsStr}\n\nPlantillas disponibles: ${availableFormats.join(', ')}\n\n=== REGLA DE GENERACIÓN ===\n1. RECOLECTAR DATOS: Si no sabes grado, materia, tema o plantilla preferida, pregunta amablemente antes de avanzar.\n2. DELEGAR AL BACK-OFFICE: SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la herramienta "consultar_especialista" pasando el ID adecuado y el NOMBRE EXACTO de la plantilla.\n3. AUDITAR Y ENTREGAR: Si el especialista reporta "ESTADO: FALTA_DATO_ESENCIAL", PREGÚNTALE AL PROFESOR ese dato que falta de forma natural y NO uses la etiqueta de generar documento. Si el especialista devuelve el JSON completo, preséntalo amigablemente.\n4. GENERACIÓN DE DOCUMENTO: SÓLO puedes agregar la etiqueta [GENERATE_DOCX] al final de tu mensaje si acabas de recibir una respuesta exitosa del especialista con el trabajo técnico y el JSON.\n5. VIGILANTE RECOLECTOR (PERFIL): Si el profesor menciona su nombre, grado, área escolar o centro educativo, DEBES incluir esta etiqueta en tu respuesta: [UPDATE_PROFILE: {"name":"...", "grade":"...", "area":"...", "school":"..."}]. Si menciona un gusto o preferencia, usa [MEMORIA: ...].`;
+                                       `\n\n=== ESTADO DEL DOCENTE ===\nPerfil: ${user.name||'No especificado'}, Grado: ${user.grade||'No especificado'}, Área: ${user.area||'No especificada'}\n\n=== HERRAMIENTAS INTERNAS ===\nEspecialistas disponibles:\n${availableSpecialistsStr}\n\nPlantillas disponibles: ${availableFormats.join(', ')}\n\n=== REGLA DE GENERACIÓN ===\n1. RECOLECTAR DATOS: Si no sabes grado, materia, tema o plantilla preferida, pregunta amablemente antes de avanzar.\n2. DELEGAR AL BACK-OFFICE: SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la herramienta "consultar_especialista" pasando el ID adecuado y el NOMBRE EXACTO de la plantilla.\n3. AUDITAR Y ENTREGAR: Si el especialista reporta "ESTADO: FALTA_DATO_ESENCIAL", PREGÚNTALE AL PROFESOR ese dato que falta de forma natural y NO uses la etiqueta de generar documento. Si el especialista devuelve el JSON completo, preséntalo amigablemente.\n4. GENERACIÓN DE DOCUMENTO: Cuando el Especialista te entregue el JSON listo, NUNCA inventes enlaces de descarga markdown (ej. [archivo.docx](link)). Tu ÚNICA forma de generar y entregar el documento es escribiendo literalmente la etiqueta [GENERATE_DOCX] al final de tu mensaje. Nuestro sistema interceptará esa etiqueta y generará el archivo real.\n5. VIGILANTE RECOLECTOR (PERFIL): Si el profesor menciona su nombre, grado, área escolar o centro educativo, DEBES incluir esta etiqueta en tu respuesta: [UPDATE_PROFILE: {"name":"...", "grade":"...", "area":"...", "school":"..."}]. Si menciona un gusto o preferencia, usa [MEMORIA: ...].`;
 
                 // Removemos globalKnowledgeBlock del Orquestador para no distraerlo. Solo se lo enviamos al Especialista.
                 const systemWithRefs = MINERD_SYSTEM_PROMPT + refBlock;
@@ -288,17 +288,18 @@ module.exports = function (app) {
                                     
                                     if (plantillaNombre) {
                                         const exactFormat = formats.find(f => f.type === plantillaNombre);
-                                        if (exactFormat && exactFormat.ia_instructions) {
-                                            dynamicInstructions += `\n**Para la plantilla seleccionada (${exactFormat.type})**, tu JSON DEBE incluir estas llaves exactas:\n${exactFormat.ia_instructions}\n`;
+                                        if (exactFormat) {
+                                            const formatTags = exactFormat.tags ? exactFormat.tags.join(', ') : 'No detectadas';
+                                            dynamicInstructions += `\n**Para la plantilla seleccionada (${exactFormat.type})**, tu JSON DEBE incluir EXACTAMENTE estas llaves:\n[${formatTags}]\nSi inventas llaves nuevas o omites alguna, la plantilla saldrá en blanco.\n`;
                                         }
                                     } else {
                                         for (const f of formats) {
-                                            if (f.ia_instructions) {
-                                                dynamicInstructions += `\n**Si usas la plantilla ${f.type}**, tu JSON DEBE incluir estas llaves:\n${f.ia_instructions}\n`;
+                                            if (f.tags) {
+                                                dynamicInstructions += `\n**Si usas la plantilla ${f.type}**, tu JSON DEBE incluir EXACTAMENTE estas llaves:\n[${f.tags.join(', ')}]\n`;
                                             }
                                         }
                                     }
-                                    dynamicInstructions += '\n\nIMPORTANTE: ¡Si no incluyes el bloque ```json con los datos, el sistema fallará y el profesor no recibirá su documento! NO DEVUELVAS TEXTO DE RELLENO, SOLO EL INFORME Y EL JSON.';
+                                    dynamicInstructions += '\n\nIMPORTANTE: ¡Si no incluyes el bloque ```json con los datos usando LAS LLAVES EXACTAS indicadas arriba, el sistema fallará y el profesor no recibirá su documento! NO DEVUELVAS TEXTO DE RELLENO, SOLO EL INFORME Y EL JSON.';
 
                                     const specModel = specPromptDoc.model || 'gpt-4o-mini';
                                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: `Flujo del Especialista (${specPromptDoc.name})`, details: `(Datos Recibidos + Accediendo a "Plantillas" + Datos de Plantilla "${plantillaNombre || 'X'}" Extraídos + Accediendo a "Conocimientos Planixa" + Conocimientos de Planixa Extraídos + Inyectando Datos en Plantilla "${plantillaNombre || 'X'}" + Enviando Archivo a Planixa Principal)` });

@@ -8,6 +8,7 @@ const { logApiUsage } = require('../finance');
 const pdfParse = require('pdf-parse');
 const mammoth = require('mammoth');
 const os = require('os');
+const PizZip = require('pizzip');
 
 // Configure multer storage
 const storage = multer.diskStorage({
@@ -613,6 +614,19 @@ Si no pide un PDF explícitamente, responde normalmente.`;
             if (req.file) {
                 newFormat.fileName = req.file.originalname;
                 newFormat.filePath = '/uploads/formats/' + req.file.filename;
+                
+                // Extract tags from DOCX
+                let tags = [];
+                try {
+                    const filePath = path.join(__dirname, '../../public', newFormat.filePath);
+                    const content = fs.readFileSync(filePath, 'binary');
+                    const zip = new PizZip(content);
+                    const rawXml = zip.files['word/document.xml'] ? zip.files['word/document.xml'].asText() : '';
+                    const pureText = rawXml.replace(/<[^>]+>/g, '');
+                    const tagMatches = pureText.match(/\{\{([^}]+)\}\}/g) || [];
+                    tags = [...new Set(tagMatches.map(t => t.replace(/[{}]/g, '').trim()))];
+                } catch(e) { console.error('Error extracting tags:', e); }
+                newFormat.tags = tags;
             } else {
                 return res.status(400).json({ error: 'Debes subir un archivo de plantilla (.docx)' });
             }
@@ -656,6 +670,19 @@ Si no pide un PDF explícitamente, responde normalmente.`;
             if (req.file) {
                 updateData.fileName = req.file.originalname;
                 updateData.filePath = '/uploads/formats/' + req.file.filename;
+                
+                // Extract tags from DOCX
+                let tags = [];
+                try {
+                    const filePath = path.join(__dirname, '../../public', updateData.filePath);
+                    const content = fs.readFileSync(filePath, 'binary');
+                    const zip = new PizZip(content);
+                    const rawXml = zip.files['word/document.xml'] ? zip.files['word/document.xml'].asText() : '';
+                    const pureText = rawXml.replace(/<[^>]+>/g, '');
+                    const tagMatches = pureText.match(/\{\{([^}]+)\}\}/g) || [];
+                    tags = [...new Set(tagMatches.map(t => t.replace(/[{}]/g, '').trim()))];
+                } catch(e) { console.error('Error extracting tags:', e); }
+                updateData.tags = tags;
             }
             
             await getDb().collection('doc_formats').updateOne({ _id }, { $set: updateData });

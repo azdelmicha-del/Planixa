@@ -136,11 +136,11 @@ Debes responder EXACTAMENTE con este formato, SIN agregar toda la planificación
 [GENERATE_WORD]
 \`\`\`json
 {
-  "etiqueta_del_word1": "Valor rellenado por ti",
-  "etiqueta_del_word2": "Valor rellenado por ti"
+  "ejemplo_llave": "Valor rellenado por ti"
 }
 \`\`\`
-Nota: Asegúrate de adivinar/usar las claves correctas para el JSON según el contexto.`;
+REGLA CRÍTICA: La plantilla tiene EXACTAMENTE estas etiquetas de texto: [${matchedFormat.tags ? matchedFormat.tags.join(', ') : 'no_detectadas'}].
+TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si omites una llave o inventas una que no está en la lista, el documento saldrá en blanco.`;
                     MINERD_SYSTEM_PROMPT += tmplIns;
                     req.pendingFormatId = matchedFormat._id.toString();
                     
