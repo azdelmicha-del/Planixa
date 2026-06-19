@@ -194,9 +194,10 @@ module.exports = function (app) {
                 const availableFormats = formats.map(f => f.name);
 
                 MINERD_SYSTEM_PROMPT = defaultPrompt.content + 
-                                       `\n\n=== ESTADO DEL DOCENTE ===\nPerfil: ${user.name||'No especificado'}, Grado: ${user.grade||'No especificado'}, Área: ${user.area||'No especificada'}\n\n=== HERRAMIENTAS INTERNAS ===\nEspecialistas disponibles: ${availableSpecialists.map(s=>s.name).join(', ')}\nPlantillas disponibles: ${availableFormats.join(', ')}\n\n=== REGLA DE GENERACIÓN ===\n1. RECOLECTAR DATOS: Si no sabes grado, materia, tema o plantilla preferida, pregunta amablemente antes de avanzar.\n2. DELEGAR AL BACK-OFFICE: SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la herramienta "consultar_especialista" pasando el ID adecuado y todas las instrucciones necesarias. NO intentes redactar la estructura técnica tú mismo.\n3. AUDITAR Y ENTREGAR: Una vez que el especialista te devuelva la estructura cruda, audítala. Si está correcta, preséntala al profesor de manera amigable (usa el separador ||| para dividir tu saludo del contenido técnico).\n4. GENERACIÓN DE DOCUMENTO: Si auditas un trabajo técnico y está listo, agrega obligatoriamente al final de tu mensaje la etiqueta [GENERATE_DOCX] para imprimir el archivo. NUNCA inventes enlaces de descarga web [Descargar](#).`;
+                                       `\n\n=== ESTADO DEL DOCENTE ===\nPerfil: ${user.name||'No especificado'}, Grado: ${user.grade||'No especificado'}, Área: ${user.area||'No especificada'}\n\n=== HERRAMIENTAS INTERNAS ===\nEspecialistas disponibles: ${availableSpecialists.map(s=>s.name).join(', ')}\nPlantillas disponibles: ${availableFormats.join(', ')}\n\n=== REGLA DE GENERACIÓN ===\n1. RECOLECTAR DATOS: Si no sabes grado, materia, tema o plantilla preferida, pregunta amablemente antes de avanzar.\n2. DELEGAR AL BACK-OFFICE: SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la herramienta "consultar_especialista" pasando el ID adecuado y todas las instrucciones necesarias. NO intentes redactar la estructura técnica tú mismo.\n3. AUDITAR Y ENTREGAR: Una vez que el especialista te devuelva la estructura cruda, audítala. Si está correcta, preséntala al profesor de manera amigable.\n4. GENERACIÓN DE DOCUMENTO: SÓLO puedes agregar la etiqueta [GENERATE_DOCX] al final de tu mensaje si acabas de recibir una respuesta del especialista con el trabajo técnico. ¡Está PROHIBIDO usar [GENERATE_DOCX] si no has consultado al especialista en esta misma interacción!`;
 
-                const systemWithRefs = MINERD_SYSTEM_PROMPT + refBlock + globalKnowledgeBlock;
+                // Removemos globalKnowledgeBlock del Orquestador para no distraerlo. Solo se lo enviamos al Especialista.
+                const systemWithRefs = MINERD_SYSTEM_PROMPT + refBlock;
                 const messages = [
                     { role: 'system', content: systemWithRefs },
                     ...historyMessages,
@@ -429,6 +430,12 @@ module.exports = function (app) {
                         const allFormats = await getDb().collection('doc_formats').find({}).toArray();
                         const jStr = Object.keys(jsonData).length > 0 ? JSON.stringify(jsonData).toLowerCase() : '';
                         let bestFmt = null;
+                        
+                        if (!jStr) {
+                            console.error('[WORD GEN] JSON vacío. El Especialista no proveyó datos o no fue consultado.');
+                            throw new Error("EMPTY_JSON");
+                        }
+
                         if (jStr) {
                             if (jStr.includes('inicial')) bestFmt = allFormats.find(f => f.type.toLowerCase().includes('inicial'));
                             else if (jStr.includes('primari')) bestFmt = allFormats.find(f => f.type.toLowerCase().includes('primari'));
