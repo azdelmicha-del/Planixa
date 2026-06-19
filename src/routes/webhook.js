@@ -320,6 +320,14 @@ module.exports = function (app) {
                                         // Extraer JSON directamente del especialista para no perderlo
                                         const jsonMatch = specResultText.match(/```json\s*(\{[\s\S]*?\})\s*```/) || specResultText.match(/(\{[\s\S]*?\})/);
                                         if (jsonMatch) finalJsonFromSpecialist = jsonMatch[1];
+                                        
+                                        // DEBUG DUMP
+                                        const fs = require('fs');
+                                        const path = require('path');
+                                        try {
+                                            fs.writeFileSync(path.join(__dirname, '..', '..', 'public', 'downloads', 'debug_spec.txt'), specResultText);
+                                        } catch(e) {}
+                                        
                                     } else {
                                         const errText = await specRes.text();
                                         console.error("Error API Especialista:", errText);
