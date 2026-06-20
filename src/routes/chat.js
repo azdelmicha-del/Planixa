@@ -115,6 +115,8 @@ module.exports = function (app) {
         MINERD_SYSTEM_PROMPT += profileBlock;
         MINERD_SYSTEM_PROMPT += `\n\n=== REGLA: VIGILANTE RECOLECTOR (PERFIL) ===\nSi el profesor menciona su nombre, grado, área escolar o centro educativo en la conversación, DEBES incluir esta etiqueta oculta al final de tu respuesta: [UPDATE_PROFILE: {"name":"...", "grade":"...", "area":"...", "school":"..."}]. Si menciona un gusto o preferencia de cómo le gustan las cosas, usa [MEMORIA: ...].`;
 
+        let activeFormatId = null;
+
         if (fRes && fRes.ok) {
             const fData = await fRes.json();
             if (fData.usage) await logApiUsage(userId, 'Web: Clasificador Formato', 'gpt-4o-mini', fData.usage);
@@ -122,11 +124,30 @@ module.exports = function (app) {
             if (chosenType && chosenType !== "NINGUNO") {
                 const matchedFormat = formats.find(f => f.type.toLowerCase() === chosenType.toLowerCase());
                 if (matchedFormat) {
-                    hasFormat = true;
-                    let tmplIns = `\n\nREGLA ESTRICTA DE FORMATO VISUAL (PLANTILLA WORD):\nEl administrador ha asignado una plantilla Word para este documento.`;
-                    if (matchedFormat.instructions) tmplIns += `\nINSTRUCCIONES EXTRA DEL ADMIN: ${matchedFormat.instructions}`;
-                    
-                    tmplIns += `\n\nREGLA DE APROBACIÓN (MUY IMPORTANTE):
+                    activeFormatId = matchedFormat._id.toString();
+                    req.pendingFormatId = activeFormatId;
+                    if (conversationId) {
+                        await getDb().collection('conversations').updateOne(
+                            { _id: new mongoose.Types.ObjectId(conversationId) },
+                            { $set: { pendingFormatId: activeFormatId } }
+                        );
+                    }
+                }
+            }
+        }
+
+        if (!activeFormatId && activeConv && activeConv.pendingFormatId) {
+            activeFormatId = activeConv.pendingFormatId;
+        }
+
+        if (activeFormatId) {
+            const matchedFormat = formats.find(f => f._id.toString() === activeFormatId.toString());
+            if (matchedFormat) {
+                hasFormat = true;
+                let tmplIns = `\n\nREGLA ESTRICTA DE FORMATO VISUAL (PLANTILLA WORD):\nEl administrador ha asignado una plantilla Word para este documento.`;
+                if (matchedFormat.instructions) tmplIns += `\nINSTRUCCIONES EXTRA DEL ADMIN: ${matchedFormat.instructions}`;
+                
+                tmplIns += `\n\nREGLA DE APROBACIÓN (MUY IMPORTANTE):
 1. NO entregues una muestra de la planificación ni el texto completo en el chat. Mantén tus respuestas conversacionales y breves.
 2. Si faltan datos para completar la plantilla, hazle al profesor las preguntas necesarias para obtenerlos.
 3. Una vez tengas todos los datos y la planificación esté mentalmente lista, AL FINAL de tu mensaje pregúntale: "¿Tengo todos los datos listos, deseas que te genere tu documento en Word ahora?". 
@@ -143,16 +164,7 @@ Debes responder EXACTAMENTE con este formato, SIN agregar toda la planificación
 \`\`\`
 REGLA CRÍTICA: La plantilla tiene EXACTAMENTE estas etiquetas de texto: [${matchedFormat.tags ? matchedFormat.tags.join(', ') : 'no_detectadas'}].
 TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si omites una llave o inventas una que no está en la lista, el documento saldrá en blanco.`;
-                    MINERD_SYSTEM_PROMPT += tmplIns;
-                    req.pendingFormatId = matchedFormat._id.toString();
-                    
-                    if (conversationId) {
-                        await getDb().collection('conversations').updateOne(
-                            { _id: new mongoose.Types.ObjectId(conversationId) },
-                            { $set: { pendingFormatId: req.pendingFormatId } }
-                        );
-                    }
-                }
+                MINERD_SYSTEM_PROMPT += tmplIns;
             }
         }
         
@@ -353,9 +365,13 @@ TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si om
             if (text.includes('[GENERATE_WORD]')) {
                 try {
                     let jsonData = {};
-                    const jsonMatch = text.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+                    const jsonMatch = text.match(/```json\s*(\{[\s\S]*?\})\s*```/) || text.match(/(\{[\s\S]*?\})/);
                     if (jsonMatch) {
-                        jsonData = JSON.parse(jsonMatch[1]);
+                        try {
+                            jsonData = JSON.parse(jsonMatch[1]);
+                        } catch(e) {
+                            console.error("Error parsing JSON for Word doc", e);
+                        }
                     }
 
                     const finalFormatId = req.pendingFormatId || (activeConv && activeConv.pendingFormatId);
