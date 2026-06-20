@@ -12,8 +12,8 @@ window.initAdminPanel = function() {
   }
 
   function switchAdminTab(activeTabId, activeViewId, callback) {
-    const tabs = ['adminTabDash', 'adminTabUsers', 'adminTabManage', 'adminTabBroadcast', 'adminTabOrchestrator', 'adminTabConfig', 'adminTabFormats', 'adminTabKnowledge', 'adminTabMonitor'];
-    const views = ['adminDashView', 'adminChatView', 'adminManageView', 'adminBroadcastView', 'adminOrchestratorView', 'adminPromptView', 'adminFormatView', 'adminKnowledgeView', 'adminMonitorView'];
+    const tabs = ['adminTabUsers', 'adminTabManage', 'adminTabBroadcast', 'adminTabOrchestrator', 'adminTabConfig', 'adminTabFormats', 'adminTabWorkflows', 'adminTabKnowledge', 'adminTabMonitor'];
+    const views = ['adminChatView', 'adminManageView', 'adminBroadcastView', 'adminOrchestratorView', 'adminPromptView', 'adminFormatView', 'adminWorkflowsView', 'adminKnowledgeView', 'adminMonitorView'];
     
     tabs.forEach(tab => {
       const el = document.getElementById(tab);
@@ -31,7 +31,7 @@ window.initAdminPanel = function() {
     views.forEach(view => {
       const el = document.getElementById(view);
       if(el) {
-        if(view === activeViewId) el.style.display = view === 'adminChatView' || view === 'adminDashView' ? 'flex' : 'block';
+        if(view === activeViewId) el.style.display = ['adminChatView', 'adminFormatView', 'adminWorkflowsView'].includes(view) ? 'flex' : 'block';
         else el.style.display = 'none';
       }
     });
@@ -50,13 +50,13 @@ window.initAdminPanel = function() {
     if(callback) callback();
   }
 
-  document.getElementById('adminTabDash')?.addEventListener('click', () => switchAdminTab('adminTabDash', 'adminDashView', updateAdminDashboard));
   document.getElementById('adminTabUsers')?.addEventListener('click', () => switchAdminTab('adminTabUsers', 'adminChatView'));
   document.getElementById('adminTabManage')?.addEventListener('click', () => switchAdminTab('adminTabManage', 'adminManageView', renderAdminManageTable));
   document.getElementById('adminTabBroadcast')?.addEventListener('click', () => switchAdminTab('adminTabBroadcast', 'adminBroadcastView'));
   document.getElementById('adminTabOrchestrator')?.addEventListener('click', () => switchAdminTab('adminTabOrchestrator', 'adminOrchestratorView', loadAdminPrompts));
   document.getElementById('adminTabConfig')?.addEventListener('click', () => switchAdminTab('adminTabConfig', 'adminPromptView', loadAdminPrompts));
   document.getElementById('adminTabFormats')?.addEventListener('click', () => switchAdminTab('adminTabFormats', 'adminFormatView', loadAdminFormats));
+  document.getElementById('adminTabWorkflows')?.addEventListener('click', () => switchAdminTab('adminTabWorkflows', 'adminWorkflowsView', window.loadAdminWorkflows));
   document.getElementById('adminTabKnowledge')?.addEventListener('click', () => switchAdminTab('adminTabKnowledge', 'adminKnowledgeView', window.loadKnowledgeItems));
 
   document.getElementById('adminSearchUsers')?.addEventListener('input', (e) => {
@@ -448,9 +448,37 @@ function renderAdminFormats(items = adminFormats) {
         <button onclick="event.stopPropagation(); window.deleteAdminFormatById('${f.id}')" style="background:rgba(239, 68, 68, 0.2); color:#fca5a5; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px; flex:1;">Eliminar</button>
       </div>
     `;
-    card.onclick = () => openFormatModal(f);
+    card.onclick = () => renderFormatAudit(f);
     list.appendChild(card);
   });
+}
+
+function renderFormatAudit(f) {
+  const auditView = document.getElementById('adminFormatAuditView');
+  if (!auditView) return;
+  const tags = (f.tags || []);
+  auditView.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:15px; flex-wrap:wrap; gap:15px;">
+        <div style="flex:1; min-width:0;">
+            <h2 style="margin:0 0 5px 0; color:var(--text); font-size:18px; word-wrap:break-word; overflow-wrap:anywhere;">${f.type}</h2>
+            <p style="margin:0; color:var(--text-light); font-size:13px; word-wrap:break-word; overflow-wrap:anywhere;">📄 ${f.fileName || 'Sin nombre'} &nbsp;&nbsp;|&nbsp;&nbsp; 🏷️ ${tags.length} Etiquetas Extraídas</p>
+        </div>
+        <div style="display:flex; gap:10px; flex-shrink:0;">
+            <button onclick="openFormatModal(${JSON.stringify(f).replace(/"/g, '&quot;')})" style="background:var(--primary); color:white; border:none; padding:8px 15px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:bold;">✏️ Editar Formato</button>
+            <button onclick="window.deleteAdminFormatById('${f.id}')" style="background:rgba(239, 68, 68, 0.15); color:#ef4444; border:none; padding:8px 15px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:bold;">🗑️ Eliminar</button>
+        </div>
+    </div>
+    
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:15px;">
+        <h3 style="margin-top:0; color:var(--text); font-size:15px; margin-bottom:15px;">Variables Extraídas del Documento</h3>
+        ${tags.length > 0 
+            ? `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px;">
+                ${tags.map(t => `<div style="background:var(--card); padding:8px 12px; border-radius:6px; font-size:13px; border:1px solid var(--border);"><code style="color:var(--accent);">{{${t}}}</code></div>`).join('')}
+               </div>`
+            : `<div style="text-align:center; padding:30px; color:var(--text-light); font-size:13px;">No se extrajeron etiquetas de este documento o el archivo no contiene etiquetas válidas (ej. {{etiqueta}}).</div>`
+        }
+    </div>
+  `;
 }
 
 function openFormatModal(format) {
@@ -593,6 +621,31 @@ window.clearUserChat = async function(userId) {
   } catch(e) { console.error(e); }
 }
 
+window.viewUserMemory = function(userId) {
+  const user = adminUsers.find(u => u.id === userId);
+  if (!user) return PremiumModal.alert('Usuario no encontrado en memoria.');
+  
+  let html = `
+    <div style="text-align:left; font-size:14px; line-height:1.5;">
+      <h3 style="color:var(--primary); margin-top:0;">Datos del Perfil</h3>
+      <ul style="margin:0 0 15px 0; padding-left:20px; color:var(--text-light);">
+        <li><strong>Nombre:</strong> ${user.name || 'No capturado'}</li>
+        <li><strong>Grado:</strong> ${user.grade || 'No capturado'}</li>
+        <li><strong>Área/Materia:</strong> ${user.area || 'No capturada'}</li>
+        <li><strong>Centro Educativo:</strong> ${user.school || 'No capturado'}</li>
+      </ul>
+      
+      <h3 style="color:#f59e0b; margin-bottom:5px;">Preferencias y Gustos Guardados</h3>
+      <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); white-space:pre-wrap;">${user.preferences ? user.preferences.replace(/-/g, '•') : '<i>Planixa aún no ha extraído preferencias de este usuario.</i>'}</div>
+      
+      <p style="font-size:12px; color:var(--text-muted); margin-top:15px; border-top:1px solid var(--border); padding-top:10px;">
+        ℹ️ Estos datos se inyectan automáticamente al contexto de Planixa cada vez que este profesor habla, para que no tenga que repetir la información.
+      </p>
+    </div>
+  `;
+  PremiumModal.alert(html);
+}
+
 async function loadAdminUserChat(userId) {
   const view = document.getElementById('adminChatView');
   view.style.display = 'flex';
@@ -624,6 +677,7 @@ async function loadAdminUserChat(userId) {
           <span style="background:${planColor}22; color:${planColor}; border:1px solid ${planColor}55; border-radius:6px; padding:3px 10px; font-weight:600;">📋 ${user.plan || 'trial'}</span>
           <span style="background:var(--bg-hover); border-radius:6px; padding:3px 10px;">🗓️ Vence: ${expiresStr}</span>
           <span style="background:var(--bg-hover); border-radius:6px; padding:3px 10px;">📄 ${user.plans_count || 0} planificaciones</span>
+          <button onclick="window.viewUserMemory('${userId}')" style="background:rgba(245, 158, 11, 0.2); color:#f59e0b; border:1px solid #f59e0b; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:bold;">🧠 Ver Memoria</button>
           <button onclick="clearUserChat('${userId}')" style="background:rgba(239, 68, 68, 0.2); color:#fca5a5; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:bold;">🗑️ Vaciar Chat</button>
         </div>
       </div>
@@ -925,12 +979,14 @@ async function sendAdminAiMessage() {
 
 async function loadAdminDashboard() {
   try {
+    const elTotal = document.getElementById('dashTotalUsers');
+    if (!elTotal) return;
     const res = await fetch('/api/admin/dashboard?t=' + Date.now(), {
       headers: { 'Authorization': 'Bearer ' + localStorage.getItem('planif_token') }
     });
     if (res.ok) {
       const data = await res.json();
-      document.getElementById('dashTotalUsers').textContent = data.totalUsers || 0;
+      elTotal.textContent = data.totalUsers || 0;
       document.getElementById('dashActiveUsers').textContent = data.activeUsers || 0;
       
       const elFree = document.getElementById('dashFreeUsers');
@@ -1389,8 +1445,8 @@ window.initSupervisorPanel = async function() {
     });
   }
 
-  // Activar la vista del agente por defecto al abrir el panel
-  window.switchSupTab('agente');
+  // Activar la vista de consola por defecto al abrir el panel
+  window.switchSupTab('console');
 };
 
 window.loadSupervisorLogs = async function() {

@@ -106,12 +106,14 @@ async function enterApp() {
     if ($('adminNavTab')) {
       $('adminNavTab').style.display = 'inline-block';
       if ($('supervisorNavTab')) $('supervisorNavTab').style.display = 'inline-block';
+      if ($('admindashNavTab')) $('admindashNavTab').style.display = 'inline-block';
       if ($('financeNavTab')) $('financeNavTab').style.display = 'inline-block';
       if ($('paymentsNavTab')) $('paymentsNavTab').style.display = 'inline-block';
+      if ($('demoNavTab')) $('demoNavTab').style.display = 'inline-block';
       if ($('manageNavTab')) $('manageNavTab').style.display = 'inline-block';
       
       document.querySelectorAll('.nav-tab').forEach(t => {
-        const allowed = ['admin', 'supervisor', 'finance', 'payments', 'manage'];
+        const allowed = ['admin', 'admindash', 'supervisor', 'finance', 'payments', 'manage', 'demo'];
         if (!allowed.includes(t.dataset.tab)) t.style.display = 'none';
       });
       if ($('topNewBtn')) $('topNewBtn').style.display = 'none';
@@ -684,7 +686,7 @@ async function switchTab(tab) {
     t.style.fontWeight = '';
     t.style.borderBottomColor = '';
   });
-  const panels = ['chat-main', 'adminPanel', 'calendarPanel', 'templatesPanel', 'studentsPanel', 'schedulePanel', 'annualPanel', 'statsPanel', 'remindersPanel', 'customTemplatesPanel', 'journalPanel', 'competenciasPanel', 'clientsPanel', 'supervisorPanel', 'financePanel', 'managePanel', 'knowledgePanel', 'evalSchedulePanel', 'paymentsPanel'];
+  const panels = ['chat-main', 'adminPanel', 'admindashPanel', 'demoPanel', 'calendarPanel', 'templatesPanel', 'studentsPanel', 'schedulePanel', 'annualPanel', 'statsPanel', 'remindersPanel', 'customTemplatesPanel', 'journalPanel', 'competenciasPanel', 'clientsPanel', 'supervisorPanel', 'financePanel', 'managePanel', 'knowledgePanel', 'evalSchedulePanel', 'paymentsPanel'];
   const tabLower = tab.toLowerCase();
   for (const id of panels) {
     const el = $(id);
@@ -727,6 +729,7 @@ async function switchTab(tab) {
   if (tab === 'journal') loadJournal();
   if (tab === 'competencias') loadCompetencias();
   if (tab === 'evalSchedule') loadEvalSchedule();
+  if (tab === 'admindash' && typeof window.updateAdminDashboard === 'function') window.updateAdminDashboard();
   if (tab === 'manage' && typeof window.renderAdminManageTable === 'function') window.renderAdminManageTable();
 }
 document.querySelectorAll('.nav-tab').forEach(tab => {

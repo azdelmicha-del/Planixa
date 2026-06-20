@@ -60,7 +60,6 @@
       <button class="nav-new" id="topNewBtn">+ Nueva</button>
       <button class="nav-tab active" data-tab="chat">💬 Chat / Doc</button>
       <button class="nav-tab" data-tab="calendar">📅 Calendario</button>
-      <button class="nav-tab" data-tab="admin" id="adminNavTab" style="display:none; color: #f59e0b;">⚙️ Admin SaaS</button>
       <button class="nav-tab" data-tab="templates">📋 Plantillas</button>
       <button class="nav-tab" data-tab="students">👨‍🎓 Estudiantes</button>
       <button class="nav-tab" data-tab="schedule">🗓️ Horario</button>
@@ -70,11 +69,16 @@
       <button class="nav-tab" data-tab="customTemplates">📝 Mis Plantillas</button>
       <button class="nav-tab" data-tab="journal">📓 Diario</button>
       <button class="nav-tab" data-tab="competencias">🎯 Competencias</button>
+      <button class="nav-tab" data-tab="eval-schedule">📅 Evaluaciones</button>
+      
+      <!-- Admin Tabs -->
+      <button class="nav-tab" data-tab="admindash" id="admindashNavTab" style="display:none; color: #10b981;">📊 Dashboard</button>
+      <button class="nav-tab" data-tab="admin" id="adminNavTab" style="display:none; color: #f59e0b;">⚙️ Admin SaaS</button>
+      <button class="nav-tab" data-tab="manage" id="manageNavTab" style="display:none; color: #3b82f6;">👥 Gestión</button>
       <button class="nav-tab" data-tab="supervisor" id="supervisorNavTab" style="display:none; color: #f59e0b;">🖥️ Monitor de Sistema</button>
       <button class="nav-tab" data-tab="finance" id="financeNavTab" style="display:none; color: #10b981;">💰 Finanzas</button>
       <button class="nav-tab" data-tab="payments" id="paymentsNavTab" style="display:none; color: #a855f7;">💳 Pagos</button>
-      <button class="nav-tab" data-tab="manage" id="manageNavTab" style="display:none; color: #3b82f6;">👥 Gestión</button>
-      <button class="nav-tab" data-tab="eval-schedule">📅 Evaluaciones</button>
+      <button class="nav-tab" data-tab="demo" id="demoNavTab" style="display:none; color: #ec4899;">🎬 Modo Demo</button>
       </div>
     </div>
     <div id="adminLogoutContainer" style="display:none; padding:15px;">
@@ -141,6 +145,8 @@
       <div class="page-area">
         <div class="chat-main" id="chat-main" data-panel="chat"></div>
   <div id="adminPanel" class="panel-content" data-panel="admin"></div>
+  <div id="admindashPanel" class="panel-content" data-panel="admindash"></div>
+  <div id="demoPanel" class="panel-content" data-panel="demo"></div>
 
   <div id="calendarPanel" class="panel-content" data-panel="calendar"></div>
   <div id="templatesPanel" class="panel-content" data-panel="templates"></div>
@@ -310,6 +316,7 @@ window.PremiumModal = {
 </script>
 
   <script>document.write('<script src="/public/js/admin.js?v=' + Date.now() + '" defer><\/script>');</script>
+  <script>document.write('<script src="/public/js/workflows.js?v=' + Date.now() + '" defer><\/script>');</script>
   <script>document.write('<script src="/public/js/app.js?v=' + Date.now() + '"><\/script>');</script>
 </body>
 </html>

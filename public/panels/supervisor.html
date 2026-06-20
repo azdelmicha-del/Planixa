@@ -1,13 +1,13 @@
 <div style="padding:20px; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; gap:15px; height:100%; box-sizing:border-box;">
   
   <div id="supervisorTopMenu" style="display:flex; flex-wrap:wrap; justify-content:flex-start; align-items:center; gap:10px; padding:10px 15px; background:var(--card); border:1px solid var(--border); border-radius:12px; font-size:14px;">
-    <span id="supTabAgente" onclick="window.switchSupTab('agente')" style="cursor:pointer; color:var(--primary); font-weight:bold; transition:color 0.2s;">⚙️ Agente de Calidad IA</span>
+    <span id="supTabConsole" onclick="window.switchSupTab('console')" style="cursor:pointer; color:var(--primary); font-weight:bold; transition:color 0.2s;">🖥️ Consola</span>
     <span style="color:var(--border); user-select:none;">|</span>
-    <span id="supTabConsole" onclick="window.switchSupTab('console')" style="cursor:pointer; color:var(--text-light); transition:color 0.2s;">🖥️ Consola</span>
+    <span id="supTabAgente" onclick="window.switchSupTab('agente')" style="cursor:pointer; color:var(--text-light); transition:color 0.2s;">⚙️ Agente de Calidad IA</span>
   </div>
 
   <!-- Agente de Calidad View -->
-  <div id="supervisorAgenteView" style="display:block; flex:1; overflow-y:auto;">
+  <div id="supervisorAgenteView" style="display:none; flex:1; overflow-y:auto;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:15px;">
       <div>
         <h2 style="font-size:18px;font-weight:bold; color:var(--text); margin:0;">⚙️ Agente de Calidad IA</h2>
@@ -56,7 +56,7 @@
   </div>
 
   <!-- Consola View -->
-  <div id="adminMonitorView" style="display:none; flex:1; padding:0; overflow-y:hidden; flex-direction:column; gap:15px; height:100%; box-sizing:border-box;">
+  <div id="adminMonitorView" style="display:flex; flex:1; padding:0; overflow-y:hidden; flex-direction:column; gap:15px; height:100%; box-sizing:border-box;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; border-bottom:1px solid var(--border); padding-bottom:15px;">
       <div>
         <h2 style="font-size:18px;font-weight:bold; color:var(--text); margin:0;">🖥️ Consola e Infraestructura</h2>

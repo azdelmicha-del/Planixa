@@ -34,7 +34,9 @@ module.exports = function (app) {
             if (userDoc.grade) parts.push('Grado que trabaja: ' + userDoc.grade);
             if (userDoc.area) parts.push('Área/Materia: ' + userDoc.area);
             if (userDoc.school) parts.push('Centro educativo: ' + userDoc.school);
-            if (parts.length > 0) profileBlock = '\n\n📋 DATOS DEL DOCENTE:\n' + parts.join('\n') + '\n\nUSA ESTOS DATOS para personalizar las planificaciones.\n';
+            if (userDoc.preferences) parts.push('\n💡 RECORDATORIOS/GUSTOS DEL DOCENTE:\n' + userDoc.preferences);
+            
+            if (parts.length > 0) profileBlock = '\n\n📋 DATOS DEL DOCENTE:\n' + parts.join('\n') + '\n\nUSA ESTOS DATOS para personalizar tus respuestas y planificaciones. No preguntes de nuevo por datos que ya tienes aquí.\n';
         }
 
         const refDocs = await getDb().collection('references').find({ userId }).toArray();

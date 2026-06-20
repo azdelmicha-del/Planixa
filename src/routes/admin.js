@@ -598,8 +598,23 @@ Si no pide un PDF explícitamente, responde normalmente.`;
                 type: f.type, 
                 fileName: f.fileName,
                 filePath: f.filePath,
+                tags: f.tags || [],
                 instructions: f.instructions || ''
             })));
+        } catch (err) { res.status(500).json({ error: err.message }); }
+    });
+
+    // --- AUDITORÍA VISUAL DE FLUJOS (WORKFLOWS) ---
+    app.get('/api/admin/workflows', authenticateToken, async (req, res) => {
+        if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
+        try {
+            const workflowsPath = path.join(__dirname, '../data/workflows.json');
+            if (fs.existsSync(workflowsPath)) {
+                const data = JSON.parse(fs.readFileSync(workflowsPath, 'utf8'));
+                res.json(data);
+            } else {
+                res.json({ core_loop: [], background_flows: [] });
+            }
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
 
