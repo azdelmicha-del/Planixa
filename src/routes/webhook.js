@@ -270,12 +270,17 @@ module.exports = function (app) {
                                 finalSpecIdUsed = specId;
 
                                 // Guardar el ID del formato de la plantilla explícitamente seleccionado
+                                let exactFormat = null;
                                 if (plantillaNombre) {
-                                    const selectedFmt = formats.find(f => f.type === plantillaNombre);
-                                    if (selectedFmt) {
-                                        if (activeConv) activeConv.pendingFormatId = selectedFmt._id.toString();
-                                        req.pendingFormatId = selectedFmt._id.toString();
-                                        req.app.emit('system_log', { type: 'PLANIXA ASISTENTE', color: '#10b981', title: 'Plantilla Fijada', details: plantillaNombre });
+                                    // Búsqueda flexible (fuzzy match)
+                                    exactFormat = formats.find(f => f.type === plantillaNombre) || 
+                                                  formats.find(f => f.type.toLowerCase().includes(plantillaNombre.toLowerCase().replace(/_/g, ' '))) ||
+                                                  formats.find(f => plantillaNombre.toLowerCase().includes(f.type.toLowerCase().replace(/_/g, ' ')));
+                                    
+                                    if (exactFormat) {
+                                        if (activeConv) activeConv.pendingFormatId = exactFormat._id.toString();
+                                        req.pendingFormatId = exactFormat._id.toString();
+                                        req.app.emit('system_log', { type: 'PLANIXA ASISTENTE', color: '#10b981', title: 'Plantilla Fijada', details: exactFormat.type });
                                     }
                                 }
                                 
@@ -286,19 +291,13 @@ module.exports = function (app) {
                                     
                                     let dynamicInstructions = '\n\n### REGLA CRÍTICA: ESTRUCTURAS JSON REQUERIDAS POR PLANTILLA\nEl Orquestador es un sistema automatizado que SOLO puede leer formato JSON. Es OBLIGATORIO que entregues todo el contenido de la planificación dentro de un bloque ```json al final de tu respuesta.\nDependiendo de la plantilla que elijas, DEBES estructurar tu JSON exactamente con las siguientes variables:\n';
                                     
-                                    if (plantillaNombre) {
-                                        const exactFormat = formats.find(f => f.type === plantillaNombre);
-                                        if (exactFormat) {
-                                            const formatTags = exactFormat.tags ? exactFormat.tags.join(', ') : 'No detectadas';
-                                            dynamicInstructions += `\n**Para la plantilla seleccionada (${exactFormat.type})**, tu JSON DEBE incluir EXACTAMENTE estas llaves:\n[${formatTags}]\nSi inventas llaves nuevas o omites alguna, la plantilla saldrá en blanco.\n`;
-                                        }
+                                    if (exactFormat) {
+                                        const formatTags = exactFormat.tags ? exactFormat.tags.join(', ') : 'No detectadas';
+                                        dynamicInstructions += `\n**Para la plantilla seleccionada (${exactFormat.type})**, tu JSON DEBE incluir EXACTAMENTE estas llaves:\n[${formatTags}]\nSi inventas llaves nuevas o omites alguna, la plantilla saldrá en blanco.\n`;
                                     } else {
-                                        for (const f of formats) {
-                                            if (f.tags) {
-                                                dynamicInstructions += `\n**Si usas la plantilla ${f.type}**, tu JSON DEBE incluir EXACTAMENTE estas llaves:\n[${f.tags.join(', ')}]\n`;
-                                            }
-                                        }
+                                        dynamicInstructions += `\n**No se encontró una plantilla específica válida**. Genera el bloque JSON con las llaves lógicas según el requerimiento del docente, pero NUNCA olvides el bloque JSON.\n`;
                                     }
+                                    
                                     dynamicInstructions += '\n\nIMPORTANTE: ¡Si no incluyes el bloque ```json con los datos usando LAS LLAVES EXACTAS indicadas arriba, el sistema fallará y el profesor no recibirá su documento! NO DEVUELVAS TEXTO DE RELLENO, SOLO EL INFORME Y EL JSON.';
 
                                     const specModel = specPromptDoc.model || 'gpt-4o-mini';

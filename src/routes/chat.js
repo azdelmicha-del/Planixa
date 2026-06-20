@@ -239,7 +239,7 @@ TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si om
                         const fmtDoc2 = await getDb().collection('doc_formats').findOne({ _id: new mongoose.Types.ObjectId(pendingFmtId) });
                         if (fmtDoc2) {
                             const convoContext = history.map(m => (m.role === 'user' ? 'Profesor' : 'Asistente') + ': ' + m.content).join('\n') + '\nProfesor: ' + message;
-                            const forcedPrompt = `Eres un experto generador de planificaciones.\nTAREA: Genera un JSON completo para Word.\n${fmtDoc2.instructions || ''}\nCONVERSACIÓN:\n${convoContext}\nResponde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON.`;
+                            const forcedPrompt = `Eres un experto generador de planificaciones.\nTAREA: Genera un JSON completo para Word.\n${fmtDoc2.instructions || ''}\n\nREGLA CRÍTICA: Tu JSON DEBE contener OBLIGATORIAMENTE estas llaves:\n[${fmtDoc2.tags ? fmtDoc2.tags.join(', ') : 'No detectadas'}]\nSi omites o inventas llaves, el documento saldrá en blanco.\n\nCONVERSACIÓN:\n${convoContext}\nResponde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON en formato \`\`\`json ... \`\`\`.`;
                             
                             const fr2 = await fetch('https://api.openai.com/v1/chat/completions', {
                                 method: 'POST',
