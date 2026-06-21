@@ -289,16 +289,11 @@ module.exports = function (app) {
                                 if (specPromptDoc) {
                                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: 'Delegando al Back-Office', details: specPromptDoc.name });
                                     
-                                    let dynamicInstructions = '\n\n### REGLA CRÍTICA: ESTRUCTURAS JSON REQUERIDAS POR PLANTILLA\nEl Orquestador es un sistema automatizado que SOLO puede leer formato JSON. Es OBLIGATORIO que entregues todo el contenido de la planificación dentro de un bloque ```json al final de tu respuesta.\nDependiendo de la plantilla que elijas, DEBES estructurar tu JSON exactamente con las siguientes variables:\n';
+                                    let dynamicInstructions = '\n\n### REGLA CRÍTICA: ESTRUCTURA REQUERIDA\nEl Orquestador es un sistema automatizado que procesará tu respuesta. Es OBLIGATORIO que entregues todo el contenido de la planificación formateado en **Markdown**.\n';
+                                    dynamicInstructions += 'Usa tablas (`|---|`), títulos (`#`), listas y negritas para estructurar el documento.\n';
+                                    dynamicInstructions += 'NUNCA devuelvas JSON. Tu respuesta debe ser la planificación completa en Markdown, lista para ser convertida a Word.\n';
                                     
-                                    if (exactFormat) {
-                                        const formatTags = exactFormat.tags ? exactFormat.tags.join(', ') : 'No detectadas';
-                                        dynamicInstructions += `\n**Para la plantilla seleccionada (${exactFormat.type})**, tu JSON DEBE incluir EXACTAMENTE estas llaves:\n[${formatTags}]\nSi inventas llaves nuevas o omites alguna, la plantilla saldrá en blanco.\n`;
-                                    } else {
-                                        dynamicInstructions += `\n**No se encontró una plantilla específica válida**. Genera el bloque JSON con las llaves lógicas según el requerimiento del docente, pero NUNCA olvides el bloque JSON.\n`;
-                                    }
-                                    
-                                    dynamicInstructions += '\n\nIMPORTANTE: ¡Si no incluyes el bloque ```json con los datos usando LAS LLAVES EXACTAS indicadas arriba, el sistema fallará y el profesor no recibirá su documento! NO DEVUELVAS TEXTO DE RELLENO, SOLO EL INFORME Y EL JSON.';
+                                    dynamicInstructions += '\n\nIMPORTANTE: ¡Asegúrate de incluir toda la información detallada! NO DEVUELVAS TEXTO DE RELLENO, SOLO EL INFORME COMPLETO EN MARKDOWN.';
 
                                     const specModel = specPromptDoc.model || 'gpt-4o-mini';
                                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: `Flujo del Especialista (${specPromptDoc.name})`, details: `(Datos Recibidos + Accediendo a "Plantillas" + Datos de Plantilla "${plantillaNombre || 'X'}" Extraídos + Accediendo a "Conocimientos Planixa" + Conocimientos de Planixa Extraídos + Inyectando Datos en Plantilla "${plantillaNombre || 'X'}" + Enviando Archivo a Planixa Principal)` });
@@ -322,9 +317,9 @@ module.exports = function (app) {
                                         if (sData.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Especialista Back', specModel, sData.usage);
                                         specResultText = sData.choices[0].message.content;
                                         
-                                        // Extraer JSON directamente del especialista para no perderlo
-                                        const jsonMatch = specResultText.match(/```json\s*(\{[\s\S]*?\})\s*```/) || specResultText.match(/(\{[\s\S]*?\})/);
-                                        if (jsonMatch) finalJsonFromSpecialist = jsonMatch[1];
+                                        // Extraer MARKDOWN directamente del especialista para no perderlo
+                                        const mdMatch = specResultText.match(/```markdown\s*([\s\S]*?)\s*```/) || specResultText.match(/([\s\S]+)/);
+                                        if (mdMatch) finalJsonFromSpecialist = mdMatch[1]; // reutilizamos la variable para guardar el MD
                                         
                                         // DEBUG DUMP
                                         const fs = require('fs');
@@ -454,140 +449,73 @@ module.exports = function (app) {
             // --- 2. ENTREGA DE WORDS POR WHATSAPP ---
             if (reply.includes('[GENERATE_WORD]') || reply.includes('[GENERATE_DOCX]') || finalJsonFromSpecialist) {
                 try {
-                    let jsonData = {};
-                    if (finalJsonFromSpecialist) {
-                        try {
-                            jsonData = JSON.parse(finalJsonFromSpecialist);
-                        } catch(e) { console.error('[WORD GEN] Error parsing direct JSON:', e.message); }
-                    } else {
-                        const jsonMatch = reply.match(/```json\s*(\{[\s\S]*?\})\s*```/) || reply.match(/(\{[\s\S]*?\})/);
-                        if (jsonMatch) {
-                            try {
-                                jsonData = JSON.parse(jsonMatch[1]);
-                            } catch(e) { console.error('[WORD GEN] JSON parse error:', e.message); }
-                        }
+                    let markdownData = finalJsonFromSpecialist || "";
+                    if (!markdownData) {
+                        const mdMatch = reply.match(/```markdown\s*([\s\S]*?)\s*```/) || reply.match(/([\s\S]+)/);
+                        if (mdMatch) markdownData = mdMatch[1];
                     }
+                    
+                    // Limpiar etiquetas de la IA
+                    markdownData = markdownData.replace(/\[GENERATE_DOCX\]/g, '').replace(/\[GENERATE_WORD\]/g, '').trim();
 
-                    let fmtId = (activeConv && activeConv.pendingFormatId) || req.pendingFormatId;
+                    const outDir = path.join(PROJECT_ROOT, 'public', 'downloads');
+                    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-                    // --- FALLBACK DE EMERGENCIA ---
-                    if (!fmtId) {
-                        console.log('[WORD GEN] No hay pendingFormatId, intentando resolver...');
-                        const allFormats = await getDb().collection('doc_formats').find({}).toArray();
-                        const jStr = Object.keys(jsonData).length > 0 ? JSON.stringify(jsonData).toLowerCase() : '';
-                        let bestFmt = null;
-                        
-                        if (!jStr) {
-                            console.error('[WORD GEN] JSON vacío. El Especialista no proveyó datos o no fue consultado.');
-                            throw new Error("EMPTY_JSON");
-                        }
+                    req.app.emit('system_log', { type: 'SISTEMA NODE.JS', color: '#10b981', title: 'Generando Documento Final', details: 'El servidor está convirtiendo el Markdown a un archivo Word desde cero.' });
 
-                        if (jStr) {
-                            if (jStr.includes('inicial')) bestFmt = allFormats.find(f => f.type.toLowerCase().includes('inicial'));
-                            else if (jStr.includes('primari')) bestFmt = allFormats.find(f => f.type.toLowerCase().includes('primari'));
-                            else if (jStr.includes('modalidad') && jStr.includes('secundari')) bestFmt = allFormats.find(f => f.type.toLowerCase().includes('modalidad'));
-                            else if (jStr.includes('secundari')) bestFmt = allFormats.find(f => f.type.toLowerCase().includes('secundari') && !f.type.toLowerCase().includes('modalidad'));
-                        }
-                        
-                        if (bestFmt) fmtId = bestFmt._id.toString();
-                        else if (allFormats.length > 0) fmtId = allFormats[0]._id.toString(); // último recurso
-                    }
+                    const outFilename = `Documento-${from}-${Date.now()}.docx`;
+                    const outPath = path.join(outDir, outFilename);
+                    const outUrl = `https://planixa.onrender.com/public/downloads/${outFilename}`;
 
-                    if (fmtId) {
-                        const formatDoc = await getDb().collection('doc_formats').findOne({ _id: new mongoose.Types.ObjectId(fmtId) });
-                        if (formatDoc && formatDoc.filePath) {
-                            const templatePath = path.join(PROJECT_ROOT, 'public', formatDoc.filePath);
-                            const outDir = path.join(PROJECT_ROOT, 'public', 'downloads');
-                            if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+                    const HTMLtoDOCX = require('html-to-docx');
+                    const { marked } = require('marked');
 
-                            req.app.emit('system_log', { type: 'SISTEMA NODE.JS', color: '#10b981', title: 'Generando Documento Final', details: `El servidor está inyectando físicamente los datos elaborados por el Especialista en la plantilla: ${formatDoc.type}` });
+                    const htmlContent = marked.parse(markdownData);
+                    const styledHtml = `
+                    <!DOCTYPE html>
+                    <html lang="es">
+                    <head>
+                        <meta charset="UTF-8">
+                        <style>
+                            body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #000000; }
+                            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                            th, td { border: 1px solid #000000; padding: 8px; text-align: left; vertical-align: top; }
+                            th { background-color: #f2f2f2; font-weight: bold; }
+                            h1 { color: #1a365d; font-size: 20pt; text-align: center; border-bottom: 2px solid #1a365d; padding-bottom: 10px; }
+                            h2 { color: #2b6cb0; font-size: 16pt; margin-top: 20px; }
+                            h3 { color: #2d3748; font-size: 14pt; }
+                            p { margin-bottom: 10px; line-height: 1.5; }
+                            ul, ol { margin-bottom: 10px; padding-left: 20px; }
+                        </style>
+                    </head>
+                    <body>
+                        ${htmlContent}
+                    </body>
+                    </html>
+                    `;
 
-                            const outFilename = `Documento-${from}-${Date.now()}.docx`;
-                            const outPath = path.join(outDir, outFilename);
-                            const outUrl = `https://planixa.onrender.com/public/downloads/${outFilename}`;
+                    const fileBuffer = await HTMLtoDOCX(styledHtml, null, {
+                        table: { row: { cantSplit: true } },
+                        footer: true,
+                        pageNumber: true
+                    });
 
-                            const content = fs.readFileSync(templatePath, 'binary');
-                            const zip = new PizZip(content);
+                    const fs2 = require('fs');
+                    fs2.writeFileSync(outPath, fileBuffer);
 
-                            // Extraer etiquetas {{campo}} reales del texto puro del Word
-                            let realKeys = [];
-                            try {
-                                const rawXml = zip.files['word/document.xml'] ? zip.files['word/document.xml'].asText() : '';
-                                const pureText = rawXml.replace(/<[^>]+>/g, '');
-                                const tagMatches = pureText.match(/\{\{([^}]+)\}\}/g) || [];
-                                realKeys = [...new Set(tagMatches.map(t => t.replace(/[{}]/g, '').trim()))];
-                                console.log('[WORD GEN] Etiquetas en plantilla:', realKeys);
-                            } catch(xe) { console.error('[WORD GEN] Error extrayendo tags:', xe.message); }
+                    await sendWhatsAppMessage(from, '¡Aquí tienes tu documento Word, profe! 📄✨', req.app);
+                    await sendWhatsAppDocument(from, outUrl, outFilename);
 
-                            // Mapeo inteligente: asignar claves faltantes desde el JSON o el perfil
-                            if (realKeys.length > 0) {
-                                const finalData = {};
-                                for (const rk of realKeys) {
-                                    const rkLow = rk.toLowerCase().replace(/[_\s]/g, '');
-                                    // Buscar coincidencia en el JSON recibido
-                                    let matched = null;
-                                    for (const [jk, jv] of Object.entries(jsonData)) {
-                                        const jkLow = jk.toLowerCase().replace(/[_\s]/g, '');
-                                        if (rk === jk || rkLow === jkLow || rkLow.includes(jkLow) || jkLow.includes(rkLow)) {
-                                            matched = jv; break;
-                                        }
-                                    }
-                                    if (matched !== null) { finalData[rk] = matched; continue; }
-                                    // Fallback desde perfil del profesor
-                                    if (rkLow.includes('profesor') || rkLow.includes('docente') || (rkLow.includes('nombre') && !rkLow.includes('tema'))) finalData[rk] = user.name || '';
-                                    else if (rkLow.includes('grado') || rkLow.includes('nivel')) finalData[rk] = user.grade || jsonData.grado || '';
-                                    else if (rkLow.includes('area') || rkLow.includes('materia') || rkLow.includes('asignatura')) finalData[rk] = user.area || jsonData.area || '';
-                                    else if (rkLow.includes('escuela') || rkLow.includes('centro') || rkLow.includes('colegio')) finalData[rk] = user.school || '';
-                                    else if (rkLow.includes('fecha')) finalData[rk] = new Date().toLocaleDateString('es-DO');
-                                    else finalData[rk] = ''; // dejar vacío en vez de crashear
-                                }
-                                jsonData = finalData;
-                                console.log('[WORD GEN] JSON final para plantilla:', Object.keys(jsonData));
-                            }
-
-                            // nullGetter evita que claves faltantes tiren error
-                            const doc = new Docxtemplater(zip, { delimiters: { start: '{{', end: '}}' }, paragraphLoop: true, linebreaks: true, nullGetter: () => '' });
-                            doc.render(jsonData);
-
-                            const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
-                            fs.writeFileSync(outPath, buf);
-
-                            await sendWhatsAppMessage(from, '¡Aquí tienes tu documento Word, profe! 📄✨', req.app);
-                            await sendWhatsAppDocument(from, outUrl, outFilename);
-
-                            // Limpiar pendingFormatId
-                            if (activeConv) {
-                                await getDb().collection('conversations').updateOne(
-                                    { _id: activeConv._id },
-                                    { $unset: { pendingFormatId: '' } }
-                                );
-                            }
-                        } else {
-                            await sendWhatsAppMessage(from, 'Hubo un error localizando la plantilla original.', req.app);
-                        }
-                    } else {
-                        await sendWhatsAppMessage(from, 'Hubo un problema encontrando el formato.', req.app);
-                    }
-                } catch(e) {
-                    // Docxtemplater tiene errores estructurados con e.properties.errors
-                    if (e.properties && e.properties.errors) {
-                        console.error('[WORD GEN] Errores de plantilla:',
-                            JSON.stringify(e.properties.errors.map(er => ({
-                                id: er.id,
-                                message: er.message,
-                                xtag: er.properties?.xtag
-                            })), null, 2)
-                        );
-                    } else {
-                        console.error('[WORD GEN] Error:', e.message, e.stack);
-                    }
-                    // SIEMPRE limpiar pendingFormatId al fallar para no quedar en bucle
                     if (activeConv) {
                         await getDb().collection('conversations').updateOne(
                             { _id: activeConv._id },
                             { $unset: { pendingFormatId: '' } }
                         ).catch(() => {});
                     }
+
+                } catch(e) {
+                    console.error('[WORD GEN] Error HTMLtoDOCX:', e.message, e.stack);
+                    require('../utils/debug_logger')('Crash HTMLtoDOCX', e, finalJsonFromSpecialist || '', 'HTML');
                     await sendWhatsAppMessage(from, 'Ocurrió un error generando el documento. Por favor intenta de nuevo enviando tu solicitud.');
                 }
             }

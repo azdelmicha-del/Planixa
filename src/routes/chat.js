@@ -239,7 +239,7 @@ TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si om
                         const fmtDoc2 = await getDb().collection('doc_formats').findOne({ _id: new mongoose.Types.ObjectId(pendingFmtId) });
                         if (fmtDoc2) {
                             const convoContext = history.map(m => (m.role === 'user' ? 'Profesor' : 'Asistente') + ': ' + m.content).join('\n') + '\nProfesor: ' + message;
-                            const forcedPrompt = `Eres un experto generador de planificaciones.\nTAREA: Genera un JSON completo para Word.\n${fmtDoc2.instructions || ''}\n\nREGLA CRÍTICA: Tu JSON DEBE contener OBLIGATORIAMENTE estas llaves:\n[${fmtDoc2.tags ? fmtDoc2.tags.join(', ') : 'No detectadas'}]\nSi omites o inventas llaves, el documento saldrá en blanco.\n\nCONVERSACIÓN:\n${convoContext}\nResponde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del JSON en formato \`\`\`json ... \`\`\`.`;
+                            const forcedPrompt = `Eres un experto generador de planificaciones.\nTAREA: Genera la planificación completa en formato Markdown.\n\nREGLA CRÍTICA: Tu respuesta debe estar estructurada usando tablas (|---|), listas y negritas.\nNUNCA devuelvas JSON. Tu respuesta debe ser la planificación completa en Markdown.\n\nCONVERSACIÓN:\n${convoContext}\nResponde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del contenido en Markdown \`\`\`markdown ... \`\`\`.`;
                             
                             const fr2 = await fetch('https://api.openai.com/v1/chat/completions', {
                                 method: 'POST',
@@ -362,49 +362,63 @@ TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si om
                 await getDb().collection('users').updateOne({ _id: userDoc._id }, { $set: { preferences: currentPrefs } });
             }
 
-            if (text.includes('[GENERATE_WORD]')) {
+            if (text.includes('[GENERATE_WORD]') || text.includes('[GENERATE_DOCX]')) {
                 try {
-                    let jsonData = {};
-                    const jsonMatch = text.match(/```json\s*(\{[\s\S]*?\})\s*```/) || text.match(/(\{[\s\S]*?\})/);
-                    if (jsonMatch) {
-                        try {
-                            jsonData = JSON.parse(jsonMatch[1]);
-                        } catch(e) {
-                            console.error("Error parsing JSON for Word doc", e);
-                        }
+                    let markdownData = "";
+                    const mdMatch = text.match(/```markdown\s*([\s\S]*?)\s*```/) || text.match(/([\s\S]+)/);
+                    if (mdMatch) {
+                        markdownData = mdMatch[1];
                     }
+                    markdownData = markdownData.replace(/\[GENERATE_WORD\]/g, '').replace(/\[GENERATE_DOCX\]/g, '').trim();
 
-                    const finalFormatId = req.pendingFormatId || (activeConv && activeConv.pendingFormatId);
-                    if (finalFormatId) {
-                        const formatDoc = await getDb().collection('doc_formats').findOne({ _id: new mongoose.Types.ObjectId(finalFormatId) });
-                        if (formatDoc && formatDoc.filePath) {
-                            const templatePath = path.join(__dirname, '../..', 'public', formatDoc.filePath);
-                            const outDir = path.join(__dirname, '../..', 'public', 'downloads');
-                            if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-                            
-                            const outFilename = `Documento-${user._id}-${Date.now()}.docx`;
-                            const outPath = path.join(outDir, outFilename);
-                            const outUrl = `/public/downloads/${outFilename}`;
-                            
-                            const content = fs.readFileSync(templatePath, 'binary');
-                            const zip = new PizZip(content);
-                            const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-                            
-                            doc.render(jsonData);
-                            
-                            const buf = doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
-                            fs.writeFileSync(outPath, buf);
+                    const outDir = path.join(__dirname, '../..', 'public', 'downloads');
+                    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+                    
+                    const outFilename = `Documento-${user._id}-${Date.now()}.docx`;
+                    const outPath = path.join(outDir, outFilename);
+                    const outUrl = `/public/downloads/${outFilename}`;
+                    
+                    const HTMLtoDOCX = require('html-to-docx');
+                    const { marked } = require('marked');
 
-                            text = `Aquí tienes tu documento estructurado en Word, profe 📄✨:\n\n<a href="${outUrl}" target="_blank" download="${outFilename}" style="color:var(--primary); font-weight:bold; text-decoration:underline;">📥 Descargar Documento Word</a>`;
-                        } else {
-                            text = "Hubo un error localizando la plantilla original.";
-                        }
-                    } else {
-                        text = "Hubo un problema encontrando el formato de plantilla.";
-                    }
+                    const htmlContent = marked.parse(markdownData);
+                    const styledHtml = `
+                    <!DOCTYPE html>
+                    <html lang="es">
+                    <head>
+                        <meta charset="UTF-8">
+                        <style>
+                            body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #000000; }
+                            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                            th, td { border: 1px solid #000000; padding: 8px; text-align: left; vertical-align: top; }
+                            th { background-color: #f2f2f2; font-weight: bold; }
+                            h1 { color: #1a365d; font-size: 20pt; text-align: center; border-bottom: 2px solid #1a365d; padding-bottom: 10px; }
+                            h2 { color: #2b6cb0; font-size: 16pt; margin-top: 20px; }
+                            h3 { color: #2d3748; font-size: 14pt; }
+                            p { margin-bottom: 10px; line-height: 1.5; }
+                            ul, ol { margin-bottom: 10px; padding-left: 20px; }
+                        </style>
+                    </head>
+                    <body>
+                        ${htmlContent}
+                    </body>
+                    </html>
+                    `;
+
+                    const fileBuffer = await HTMLtoDOCX(styledHtml, null, {
+                        table: { row: { cantSplit: true } },
+                        footer: true,
+                        pageNumber: true
+                    });
+
+                    const fs2 = require('fs');
+                    fs2.writeFileSync(outPath, fileBuffer);
+
+                    text = `Aquí tienes tu documento estructurado en Word, profe 📄✨:\n\n<a href="${outUrl}" target="_blank" download="${outFilename}" style="color:var(--primary); font-weight:bold; text-decoration:underline;">📥 Descargar Documento Word</a>`;
+
                 } catch(e) {
-                    console.error("Error generating word on web: ", e);
-                    text = "Ocurrió un error rellenando el documento Word.";
+                    console.error("Error generating HTMLtoDOCX on web: ", e);
+                    text = "Ocurrió un error rellenando el documento Word desde Markdown.";
                 }
             }
 
