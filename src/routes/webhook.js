@@ -290,10 +290,15 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: 'Delegando al Back-Office', details: specPromptDoc.name });
                                     
                                     let dynamicInstructions = '\n\n### REGLA CRÍTICA: ESTRUCTURA REQUERIDA\nEl Orquestador es un sistema automatizado que procesará tu respuesta. Es OBLIGATORIO que entregues todo el contenido de la planificación formateado en **Markdown**.\n';
-                                    dynamicInstructions += 'Usa tablas (`|---|`), títulos (`#`), listas y negritas para estructurar el documento.\n';
-                                    dynamicInstructions += 'NUNCA devuelvas JSON. Tu respuesta debe ser la planificación completa en Markdown, lista para ser convertida a Word.\n';
+                                    dynamicInstructions += 'Usa tablas (`|---|`), títulos (`#`), listas y negritas para estructurar el documento de la manera más estética y profesional posible.\n';
                                     
-                                    dynamicInstructions += '\n\nIMPORTANTE: ¡Asegúrate de incluir toda la información detallada! NO DEVUELVAS TEXTO DE RELLENO, SOLO EL INFORME COMPLETO EN MARKDOWN.';
+                                    if (exactFormat) {
+                                        const formatTags = exactFormat.tags ? exactFormat.tags.map(t => t.replace(/_/g, ' ')).join(', ') : 'Estructura estándar del MINERD';
+                                        dynamicInstructions += `\n**ESTRUCTURA DEL DOCUMENTO (${exactFormat.type})**: Debes estructurar tu documento Markdown asegurándote de incluir explícitamente estas secciones o campos:\n[ ${formatTags} ]\n\n`;
+                                    }
+                                    
+                                    dynamicInstructions += 'NUNCA devuelvas JSON. Tu respuesta debe ser el documento completo en Markdown, listo para ser convertido a Word.\n';
+                                    dynamicInstructions += '\n\nIMPORTANTE: ¡Asegúrate de incluir toda la información detallada basada en los conocimientos del MINERD! NO DEVUELVAS TEXTO DE RELLENO, SOLO EL INFORME COMPLETO EN MARKDOWN.';
 
                                     const specModel = specPromptDoc.model || 'gpt-4o-mini';
                                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: `Flujo del Especialista (${specPromptDoc.name})`, details: `(Datos Recibidos + Accediendo a "Plantillas" + Datos de Plantilla "${plantillaNombre || 'X'}" Extraídos + Accediendo a "Conocimientos Planixa" + Conocimientos de Planixa Extraídos + Inyectando Datos en Plantilla "${plantillaNombre || 'X'}" + Enviando Archivo a Planixa Principal)` });
