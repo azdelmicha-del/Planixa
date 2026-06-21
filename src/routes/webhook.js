@@ -205,8 +205,8 @@ module.exports = function (app) {
                     return `- ${s.name} (Anclado a plantillas: ${supportedStr})`;
                 }).join('\n');
 
-                MINERD_SYSTEM_PROMPT = defaultPrompt.content + 
-                                       `\n\n=== ESTADO DEL DOCENTE ===\nPerfil: ${user.name||'No especificado'}, Grado: ${user.grade||'No especificado'}, Área: ${user.area||'No especificada'}\n\n=== HERRAMIENTAS INTERNAS ===\nEspecialistas disponibles:\n${availableSpecialistsStr}\n\nPlantillas disponibles: ${availableFormats.join(', ')}\n\n=== REGLA DE GENERACIÓN ===\n1. RECOLECTAR DATOS: Si no sabes grado, materia, tema o plantilla preferida, pregunta amablemente antes de avanzar.\n2. DELEGAR AL BACK-OFFICE: SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la herramienta "consultar_especialista" pasando el ID adecuado y el NOMBRE EXACTO de la plantilla.\n3. AUDITAR Y ENTREGAR: Si el especialista reporta "ESTADO: FALTA_DATO_ESENCIAL", PREGÚNTALE AL PROFESOR ese dato que falta de forma natural y NO uses la etiqueta de generar documento. Si el especialista devuelve el JSON completo, preséntalo amigablemente.\n4. GENERACIÓN DE DOCUMENTO: Cuando el Especialista te entregue el JSON listo, NUNCA inventes enlaces de descarga markdown (ej. [archivo.docx](link)). Tu ÚNICA forma de generar y entregar el documento es escribiendo literalmente la etiqueta [GENERATE_DOCX] al final de tu mensaje. Nuestro sistema interceptará esa etiqueta y generará el archivo real.\n5. VIGILANTE RECOLECTOR (PERFIL): Si el profesor menciona su nombre, grado, área escolar o centro educativo, DEBES incluir esta etiqueta en tu respuesta: [UPDATE_PROFILE: {"name":"...", "grade":"...", "area":"...", "school":"..."}]. Si menciona un gusto o preferencia, usa [MEMORIA: ...].`;
+MINERD_SYSTEM_PROMPT = defaultPrompt.content + 
+                                       `\n\n=== ESTADO DEL DOCENTE ===\nPerfil: ${user.name||'No especificado'}, Grado: ${user.grade||'No especificado'}, Área: ${user.area||'No especificada'}\n\n=== HERRAMIENTAS INTERNAS ===\nEspecialistas disponibles:\n${availableSpecialistsStr}\n\nPlantillas disponibles: ${availableFormats.join(', ')}\n\n=== REGLA DE GENERACIÓN ===\n1. RECOLECTAR DATOS: Si no sabes grado, materia, tema o plantilla preferida, pregunta amablemente antes de avanzar.\n2. DELEGAR AL BACK-OFFICE: SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la herramienta "consultar_especialista" pasando el ID adecuado y el NOMBRE EXACTO de la plantilla.\n3. AUDITAR Y ENTREGAR: Si el especialista reporta "ESTADO: FALTA_DATO_ESENCIAL", PREGÚNTALE AL PROFESOR ese dato que falta de forma natural y NO uses la etiqueta de generar documento. Si el especialista devuelve el documento Markdown, preséntalo amigablemente.\n4. GENERACIÓN DE DOCUMENTO: SÓLO puedes usar la etiqueta [GENERATE_DOCX] SI Y SÓLO SI acabas de llamar a la herramienta "consultar_especialista" y recibiste la planificación completada. ¡ESTÁ ESTRICTAMENTE PROHIBIDO usar [GENERATE_DOCX] antes de consultar al especialista!\n5. VIGILANTE RECOLECTOR (PERFIL): Si el profesor menciona su nombre, grado, área escolar o centro educativo, DEBES incluir esta etiqueta en tu respuesta: [UPDATE_PROFILE: {"name":"...", "grade":"...", "area":"...", "school":"..."}]. Si menciona un gusto o preferencia, usa [MEMORIA: ...].`;
 
                 // Removemos globalKnowledgeBlock del Orquestador para no distraerlo. Solo se lo enviamos al Especialista.
                 const systemWithRefs = MINERD_SYSTEM_PROMPT + refBlock;
@@ -451,8 +451,12 @@ module.exports = function (app) {
                 try {
                     let markdownData = finalJsonFromSpecialist || "";
                     if (!markdownData) {
-                        const mdMatch = reply.match(/```markdown\s*([\s\S]*?)\s*```/) || reply.match(/([\s\S]+)/);
-                        if (mdMatch) markdownData = mdMatch[1];
+                        const mdMatch = reply.match(/```markdown\s*([\s\S]*?)\s*```/);
+                        if (mdMatch) {
+                            markdownData = mdMatch[1];
+                        } else if (reply.length > 300) {
+                            markdownData = reply;
+                        }
                     }
                     
                     // Limpiar etiquetas de la IA
