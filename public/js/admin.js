@@ -457,11 +457,12 @@ function renderFormatAudit(f) {
   const auditView = document.getElementById('adminFormatAuditView');
   if (!auditView) return;
   const tags = (f.tags || []);
+  const hasTemplate = f.htmlTemplate && f.htmlTemplate.length > 50;
   auditView.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:15px; flex-wrap:wrap; gap:15px;">
         <div style="flex:1; min-width:0;">
             <h2 style="margin:0 0 5px 0; color:var(--text); font-size:18px; word-wrap:break-word; overflow-wrap:anywhere;">${f.type}</h2>
-            <p style="margin:0; color:var(--text-light); font-size:13px; word-wrap:break-word; overflow-wrap:anywhere;">📄 ${f.fileName || 'Sin nombre'} &nbsp;&nbsp;|&nbsp;&nbsp; 🏷️ ${tags.length} Etiquetas Extraídas</p>
+            <p style="margin:0; color:var(--text-light); font-size:13px; word-wrap:break-word; overflow-wrap:anywhere;">📄 ${f.fileName || 'Sin archivo'} &nbsp;&nbsp;|&nbsp;&nbsp; 🏷️ ${tags.length} Etiquetas &nbsp;&nbsp;|&nbsp;&nbsp; ${hasTemplate ? '✅ HTML template personalizado' : '⬜ Sin HTML template (usa estilo genérico)'}</p>
         </div>
         <div style="display:flex; gap:10px; flex-shrink:0;">
             <button onclick="openFormatModal(${JSON.stringify(f).replace(/"/g, '&quot;')})" style="background:var(--primary); color:white; border:none; padding:8px 15px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:bold;">✏️ Editar Formato</button>
@@ -469,7 +470,7 @@ function renderFormatAudit(f) {
         </div>
     </div>
     
-    <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:15px;">
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:15px; margin-bottom:15px;">
         <h3 style="margin-top:0; color:var(--text); font-size:15px; margin-bottom:15px;">Variables Extraídas del Documento</h3>
         ${tags.length > 0 
             ? `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px;">
@@ -478,6 +479,12 @@ function renderFormatAudit(f) {
             : `<div style="text-align:center; padding:30px; color:var(--text-light); font-size:13px;">No se extrajeron etiquetas de este documento o el archivo no contiene etiquetas válidas (ej. {{etiqueta}}).</div>`
         }
     </div>
+
+    ${hasTemplate ? `
+    <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:15px;">
+        <h3 style="margin-top:0; color:var(--text); font-size:15px; margin-bottom:15px;">📄 Vista Previa del HTML Template</h3>
+        <pre style="background:var(--card); padding:15px; border-radius:6px; font-size:11px; line-height:1.5; overflow-x:auto; max-height:400px; white-space:pre-wrap; word-break:break-all; color:var(--text-light);">${f.htmlTemplate.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+    </div>` : ''}
   `;
 }
 
@@ -501,6 +508,7 @@ function openFormatModal(format) {
     document.getElementById('adminFormatId').value = format.id;
     document.getElementById('adminFormatType').value = format.type || '';
     document.getElementById('adminFormatInstructions').value = format.instructions || '';
+    document.getElementById('adminFormatHtmlTemplate').value = format.htmlTemplate || '';
     document.getElementById('adminFormatFileStatus').innerText = 'Archivo actual: ' + (format.fileName || 'Ninguno');
     document.getElementById('adminFormatDeleteBtn').style.display = 'block';
     document.getElementById('countFormat').innerText = (format.instructions || '').length + ' / 3000';
@@ -508,8 +516,8 @@ function openFormatModal(format) {
     document.getElementById('adminFormatModalTitle').innerText = 'Nuevo Formato';
     document.getElementById('adminFormatId').value = '';
     document.getElementById('adminFormatType').value = '';
-    document.getElementById('adminFormatType').value = '';
     document.getElementById('adminFormatInstructions').value = '';
+    document.getElementById('adminFormatHtmlTemplate').value = '';
     document.getElementById('adminFormatFileStatus').innerText = '';
     document.getElementById('adminFormatDeleteBtn').style.display = 'none';
     document.getElementById('countFormat').innerText = '0 / 3000';
@@ -521,6 +529,7 @@ async function saveAdminFormat() {
   const id = document.getElementById('adminFormatId').value;
   const type = document.getElementById('adminFormatType').value;
   const instructions = document.getElementById('adminFormatInstructions').value;
+  const htmlTemplate = document.getElementById('adminFormatHtmlTemplate').value;
   const fileInput = document.getElementById('adminFormatFile');
   
   if (!type) return await PremiumModal.alert('El tipo es requerido');
@@ -531,6 +540,7 @@ async function saveAdminFormat() {
   const formData = new FormData();
   formData.append('type', type);
   formData.append('instructions', instructions);
+  formData.append('htmlTemplate', htmlTemplate);
   if (fileInput.files.length > 0) {
     formData.append('templateFile', fileInput.files[0]);
   }

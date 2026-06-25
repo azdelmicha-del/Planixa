@@ -502,7 +502,21 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                     req.app.emit('system_log', { type: 'SISTEMA NODE.JS', color: '#10b981', title: 'Generando Documento', details: 'Google Docs API: creando documento Word profesional' });
 
                     const htmlContent = marked.parse(markdownData);
-                    const styledHtml = buildProfessionalHtml(htmlContent);
+                    const finalFormatId = req.pendingFormatId || (activeConv && activeConv.pendingFormatId);
+                    let styledHtml;
+
+                    if (finalFormatId) {
+                        const formatDoc = await getDb().collection('doc_formats').findOne({ _id: new mongoose.Types.ObjectId(finalFormatId) });
+                        if (formatDoc && formatDoc.htmlTemplate && formatDoc.htmlTemplate.length > 50) {
+                            styledHtml = formatDoc.htmlTemplate.replace('{{content}}', htmlContent);
+                            req.app.emit('system_log', { type: 'SISTEMA NODE.JS', color: '#10b981', title: 'Usando HTML Template', details: formatDoc.type });
+                        } else {
+                            styledHtml = buildProfessionalHtml(htmlContent);
+                        }
+                    } else {
+                        styledHtml = buildProfessionalHtml(htmlContent);
+                    }
+
                     const docBuffer = await createDocxFromHtml(styledHtml, `Planifica-${from}-${Date.now()}`);
 
                     const outDir = path.join(PROJECT_ROOT, 'public', 'downloads');

@@ -599,7 +599,8 @@ Si no pide un PDF explícitamente, responde normalmente.`;
                 fileName: f.fileName,
                 filePath: f.filePath,
                 tags: f.tags || [],
-                instructions: f.instructions || ''
+                instructions: f.instructions || '',
+                htmlTemplate: f.htmlTemplate || ''
             })));
         } catch (err) { res.status(500).json({ error: err.message }); }
     });
@@ -621,10 +622,10 @@ Si no pide un PDF explícitamente, responde normalmente.`;
     app.post('/api/admin/formats', authenticateToken, upload.single('templateFile'), async (req, res) => {
         if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
         try {
-            const { type, instructions } = req.body;
+            const { type, instructions, htmlTemplate } = req.body;
             if (!type) return res.status(400).json({ error: 'El tipo de documento es requerido' });
             
-            const newFormat = { type, instructions: instructions || '', created_at: new Date() };
+            const newFormat = { type, instructions: instructions || '', htmlTemplate: htmlTemplate || '', created_at: new Date() };
             
             if (req.file) {
                 newFormat.fileName = req.file.originalname;
@@ -678,9 +679,9 @@ Si no pide un PDF explícitamente, responde normalmente.`;
         if (!(await isAdmin(req.userId))) return res.status(403).json({ error: 'Solo admin' });
         try {
             const _id = new mongoose.Types.ObjectId(req.params.id);
-            const { type, instructions } = req.body;
+            const { type, instructions, htmlTemplate } = req.body;
             
-            const updateData = { type, instructions: instructions || '', updated_at: new Date() };
+            const updateData = { type, instructions: instructions || '', htmlTemplate: htmlTemplate || '', updated_at: new Date() };
             
             if (req.file) {
                 updateData.fileName = req.file.originalname;

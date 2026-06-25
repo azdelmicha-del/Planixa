@@ -8,7 +8,7 @@ const { callSupervisor } = require('../utils/supervisor');
 const { createDocxFromHtml } = require('../utils/google_docs');
 const { buildProfessionalHtml } = require('../utils/docx_styles');
 
-async function generateDocx(markdown, userId) {
+async function generateDocx(markdown, userId, formatId) {
     const { marked } = require('marked');
     const outDir = path.join(__dirname, '../..', 'public', 'downloads');
     if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
@@ -18,11 +18,23 @@ async function generateDocx(markdown, userId) {
     const outUrl = `/public/downloads/${outFilename}`;
 
     const htmlContent = marked.parse(markdown);
-    const professionalHtml = buildProfessionalHtml(htmlContent);
+    let styledHtml;
 
-    const buffer = await createDocxFromHtml(professionalHtml, outFilename.replace('.docx', ''));
+    if (formatId) {
+        const mongoose = require('mongoose');
+        const formatDoc = await getDb().collection('doc_formats').findOne({ _id: new mongoose.Types.ObjectId(formatId) });
+        if (formatDoc && formatDoc.htmlTemplate && formatDoc.htmlTemplate.length > 50) {
+            styledHtml = formatDoc.htmlTemplate.replace('{{content}}', htmlContent);
+        } else {
+            styledHtml = buildProfessionalHtml(htmlContent);
+        }
+    } else {
+        styledHtml = buildProfessionalHtml(htmlContent);
+    }
+
+    const buffer = await createDocxFromHtml(styledHtml, outFilename.replace('.docx', ''));
     fs.writeFileSync(outPath, buffer);
-    return { url: outUrl, path: outPath };
+    return { url: outPath, path: outPath };
 }
 
 module.exports = function (app) {
@@ -299,7 +311,7 @@ REGLA: El documento se genera automáticamente desde tu Markdown. Mientras más 
                         
                         if (markdownData.length > 50) {
                             try {
-                                const result = await generateDocx(markdownData, userId);
+                                const result = await generateDocx(markdownData, userId, activeFormatId);
                                 docxUrl = result.url;
                             } catch (docxErr) {
                                 console.error("Error generando DOCX profesional:", docxErr);
@@ -426,7 +438,7 @@ REGLA: El documento se genera automáticamente desde tu Markdown. Mientras más 
                 let markdownData = text.replace(/\[GENERATE_DOCX\]/g, '').replace(/\[GENERATE_WORD\]/g, '').trim();
                 if (markdownData.length > 50) {
                     try {
-                        const result = await generateDocx(markdownData, user._id);
+                        const result = await generateDocx(markdownData, user._id, req.pendingFormatId);
                         text = `Aquí tienes tu documento profesional en Word, profe 📄✨:\n\n<a href="${result.url}" target="_blank" download="${path.basename(result.path)}" style="display:inline-block; margin-top:10px; padding:10px 15px; background:var(--primary); color:white; border-radius:5px; text-decoration:none; font-weight:bold;">📥 Descargar Documento Word</a>`;
                     } catch(e) {
                         console.error("Error generando DOCX profesional:", e);

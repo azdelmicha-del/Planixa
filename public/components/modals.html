@@ -397,6 +397,22 @@
       <textarea id="adminFormatInstructions" rows="3" style="width:100%; padding:8px; border-radius:6px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); font-size:12px; resize:vertical;" oninput="document.getElementById('countFormat').innerText = this.value.length + ' / 3000'"></textarea>
       <div style="text-align:right; font-size:10px; color:var(--text-muted); margin-top:3px;" id="countFormat">0 / 3000</div>
     </div>
+    <div style="margin-top:15px;">
+      <label style="display:block; margin-bottom:5px; font-size:13px; font-weight:bold;">Plantilla HTML (Opcional)</label>
+      <p style="font-size:11px; color:var(--text-light); margin-bottom:5px;">HTML personalizado con estilos MINERD. El contenido del especialista se inyecta donde pongas <code>{"{"}}content{"}"}</code>. Si se deja vacío, se usa el estilo genérico.</p>
+      <textarea id="adminFormatHtmlTemplate" rows="8" style="width:100%; padding:8px; border-radius:6px; background:var(--bg-hover); color:var(--text); border:1px solid var(--border); font-size:12px; font-family:monospace; resize:vertical;" placeholder="&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;style&gt;
+    /* tus estilos MINERD */
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;Ministerio de Educación...&lt;/h1&gt;
+  &lt;div class=&quot;content&quot;&gt;{{content}}&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;"></textarea>
+    </div>
     <div style="margin-top:20px; display:flex; gap:10px; justify-content:space-between;">
       <button id="adminFormatDeleteBtn" style="padding:8px 15px; border-radius:6px; background:#dc2626; color:white; border:none; cursor:pointer; display:none;">Eliminar</button>
       <div style="display:flex; gap:10px; margin-left:auto;">
