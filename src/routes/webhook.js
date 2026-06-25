@@ -3,13 +3,11 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const fs = require('fs');
 const path = require('path');
-const PDFDocument = require('pdfkit');
-const PizZip = require('pizzip');
-const Docxtemplater = require('docxtemplater');
 const { logApiUsage } = require('../finance');
 const { callSupervisor } = require('../utils/supervisor');
-const mammoth = require('mammoth');
-const pdfParse = require('pdf-parse');
+const { createDocxFromHtml } = require('../utils/google_docs');
+const { buildProfessionalHtml } = require('../utils/docx_styles');
+const { marked } = require('marked');
 
 const WA_VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN || 'elprofe2_verify_2026';
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
@@ -206,7 +204,7 @@ module.exports = function (app) {
                 }).join('\n');
 
 MINERD_SYSTEM_PROMPT = defaultPrompt.content + 
-                                       `\n\n=== ESTADO DEL DOCENTE ===\nPerfil: ${user.name||'No especificado'}, Grado: ${user.grade||'No especificado'}, Área: ${user.area||'No especificada'}\n\n=== HERRAMIENTAS INTERNAS ===\nEspecialistas disponibles:\n${availableSpecialistsStr}\n\nPlantillas disponibles: ${availableFormats.join(', ')}\n\n=== REGLA DE GENERACIÓN ===\n1. RECOLECTAR DATOS: Si no sabes grado, materia, tema o plantilla preferida, pregunta amablemente antes de avanzar.\n2. DELEGAR AL BACK-OFFICE: SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la herramienta "consultar_especialista" pasando el ID adecuado y el NOMBRE EXACTO de la plantilla. Esta es TU ÚNICA FORMA de crear un documento.\n3. AUDITAR Y ENTREGAR: Si el especialista reporta "ESTADO: FALTA_DATO_ESENCIAL", PREGÚNTALE AL PROFESOR ese dato que falta de forma natural. Si el especialista devuelve el documento Markdown, el sistema lo procesará automáticamente.\n4. PROHIBIDO FINGIR GENERACIÓN: ¡NUNCA ofrezcas enlaces de descarga falsos ni inventes etiquetas por tu cuenta! Si quieres generar el archivo, tu única acción válida es LLAMAR A LA HERRAMIENTA "consultar_especialista". Si no llamas a la herramienta, el profesor no recibirá nada.\n5. VIGILANTE RECOLECTOR (PERFIL): Si el profesor menciona su nombre, grado, área escolar o centro educativo, DEBES incluir esta etiqueta en tu respuesta: [UPDATE_PROFILE: {"name":"...", "grade":"...", "area":"...", "school":"..."}]. Si menciona un gusto o preferencia, usa [MEMORIA: ...].`;
+                                       `\n\n=== ESTADO DEL DOCENTE ===\nPerfil: ${user.name||'No especificado'}, Grado: ${user.grade||'No especificado'}, Área: ${user.area||'No especificada'}\n\n=== HERRAMIENTAS INTERNAS ===\nEspecialistas disponibles:\n${availableSpecialistsStr}\n\nPlantillas disponibles: ${availableFormats.join(', ')}\n\n=== REGLA DE DELEGACIÓN ===\n1. RECOLECTAR DATOS: Si no sabes grado, materia, tema o plantilla preferida, pregunta amablemente antes de avanzar.\n2. DELEGAR AL BACK-OFFICE (OBLIGATORIO): SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la función/herramienta "consultar_especialista" pasando el ID adecuado y el NOMBRE EXACTO de la plantilla. \n3. ¡ESTRICTAMENTE PROHIBIDO! NUNCA intentes escribir los datos del especialista como texto en tu mensaje. TU ÚNICA ACCIÓN es ejecutar la LLAMADA A LA FUNCIÓN (tool call) consultar_especialista.\n4. VIGILANTE RECOLECTOR (PERFIL): Si el profesor menciona su nombre, grado, área escolar o centro educativo, DEBES llamar a la herramienta "actualizar_perfil_docente". Si menciona un gusto o preferencia, usa la etiqueta de texto [MEMORIA: ...].`;
 
                 // Removemos globalKnowledgeBlock del Orquestador para no distraerlo. Solo se lo enviamos al Especialista.
                 const systemWithRefs = MINERD_SYSTEM_PROMPT + refBlock;
@@ -230,6 +228,22 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                                     instrucciones_detalladas: { type: "string", description: "Instrucciones detalladas y explícitas con TODO lo que el especialista necesita redactar (tema, grado, área, etc)." }
                                 },
                                 required: ["especialista_id", "plantilla_nombre", "instrucciones_detalladas"]
+                            }
+                        }
+                    },
+                    {
+                        type: "function",
+                        function: {
+                            name: "actualizar_perfil_docente",
+                            description: "Actualiza silenciosamente los datos del maestro en la base de datos (nombre, grado, área, escuela). Usa esto SIEMPRE que el profesor confirme o mencione alguno de estos datos, INCLUSO si vas a llamar a consultar_especialista al mismo tiempo.",
+                            parameters: {
+                                type: "object",
+                                properties: {
+                                    name: { type: "string", description: "Nombre completo del docente" },
+                                    grade: { type: "string", description: "Grado o curso que imparte (ej. Segundo Grado)" },
+                                    area: { type: "string", description: "Materia o área curricular (ej. Matemáticas, Lengua Española)" },
+                                    school: { type: "string", description: "Centro educativo o escuela" }
+                                }
                             }
                         }
                     }
@@ -271,7 +285,7 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
 
                                 // Guardar el ID del formato de la plantilla explícitamente seleccionado
                                 let exactFormat = null;
-                                if (plantillaNombre) {
+                                if (plantillaNombre && plantillaNombre.toLowerCase() !== 'ninguna' && plantillaNombre.toLowerCase() !== 'ninguno') {
                                     // Búsqueda flexible (fuzzy match)
                                     exactFormat = formats.find(f => f.type === plantillaNombre) || 
                                                   formats.find(f => f.type.toLowerCase().includes(plantillaNombre.toLowerCase().replace(/_/g, ' '))) ||
@@ -284,18 +298,17 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                                     }
                                 }
                                 
-                                // Si no hay formato exacto, abortar y decirle al orquestador que se equivocó
-                                if (!exactFormat) {
+                                // Si no hay formato exacto y no dijo "Ninguna", abortar
+                                if (!exactFormat && plantillaNombre && plantillaNombre.toLowerCase() !== 'ninguna' && plantillaNombre.toLowerCase() !== 'ninguno') {
                                     messages.push({
                                         tool_call_id: toolCall.id,
                                         role: "tool",
                                         name: "consultar_especialista",
                                         content: JSON.stringify({
                                             "ESTADO": "FALTA_DATO_ESENCIAL",
-                                            "MENSAJE_PARA_PLANIXA_PRINCIPAL": "Error interno: El nombre de la plantilla proporcionado no coincide con ninguna plantilla disponible. Revisa la lista de plantillas y VUELVE A LLAMAR A LA HERRAMIENTA con el nombre EXACTO de la plantilla adecuada."
+                                            "MENSAJE_PARA_PLANIXA_PRINCIPAL": "Error interno: El nombre de la plantilla proporcionado no coincide con ninguna plantilla disponible. Revisa la lista de plantillas y VUELVE A LLAMAR A LA HERRAMIENTA con el nombre EXACTO de la plantilla adecuada, o pasa 'Ninguna' si el profesor explícitamente no quiere plantilla."
                                         })
                                     });
-                                    // Continuar con el siguiente toolCall si lo hay (aunque normalmente hay 1)
                                     continue;
                                 }
                                 
@@ -303,20 +316,14 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                                 const specPromptDoc = prompts.find(p => p.name === specId || p._id.toString() === specId);
                                 if (specPromptDoc) {
                                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: 'Delegando al Back-Office', details: specPromptDoc.name });
-                                    
-                                    let dynamicInstructions = '\n\n### REGLA CRÍTICA: ESTRUCTURA REQUERIDA\nEl Orquestador es un sistema automatizado que procesará tu respuesta. Es OBLIGATORIO que entregues todo el contenido de la planificación formateado en **Markdown**.\n';
-                                    dynamicInstructions += 'Usa tablas (`|---|`), títulos (`#`), listas y negritas para estructurar el documento de la manera más estética y profesional posible.\n';
-                                    
+                                    let dynamicInstructions = '\n\n### INSTRUCCIÓN OBLIGATORIA\nEntrega TODO el contenido de la planificación en **Markdown**. Usa tablas (|---|), títulos (#), negritas y listas para estructurarlo profesionalmente.\n';
                                     if (exactFormat) {
-                                        const formatTags = exactFormat.tags ? exactFormat.tags.map(t => t.replace(/_/g, ' ')).join(', ') : 'Estructura estándar del MINERD';
-                                        dynamicInstructions += `\n**ESTRUCTURA DEL DOCUMENTO (${exactFormat.type})**: Debes estructurar tu documento Markdown asegurándote de incluir explícitamente estas secciones o campos:\n[ ${formatTags} ]\n\n`;
+                                        dynamicInstructions += `\n**ESTRUCTURA SUGERIDA (${exactFormat.type})**: Asegúrate de cubrir estos campos: ${exactFormat.tags ? exactFormat.tags.join(', ') : 'los propios del MINERD'}\n`;
                                     }
-                                    
-                                    dynamicInstructions += 'NUNCA devuelvas JSON. Tu respuesta debe ser el documento completo en Markdown, listo para ser convertido a Word.\n';
-                                    dynamicInstructions += '\n\nIMPORTANTE: ¡Asegúrate de incluir toda la información detallada basada en los conocimientos del MINERD! NO DEVUELVAS TEXTO DE RELLENO, SOLO EL INFORME COMPLETO EN MARKDOWN.';
+                                    dynamicInstructions += '\nLa ÚLTIMA línea de tu respuesta DEBE ser exactamente: [GENERATE_DOCX]';
 
                                     const specModel = specPromptDoc.model || 'gpt-4o-mini';
-                                    req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: `Flujo del Especialista (${specPromptDoc.name})`, details: `(Datos Recibidos + Accediendo a "Plantillas" + Datos de Plantilla "${plantillaNombre || 'X'}" Extraídos + Accediendo a "Conocimientos Planixa" + Conocimientos de Planixa Extraídos + Inyectando Datos en Plantilla "${plantillaNombre || 'X'}" + Enviando Archivo a Planixa Principal)` });
+                                    req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: `Flujo del Especialista (${specPromptDoc.name})`, details: `(Datos Recibidos + Accediendo a "Plantillas" + Datos de Plantilla "${plantillaNombre || 'X'}" Extraídos + Accediendo a "Conocimientos Planixa" + Conocimientos de Planixa Extraídos + Generando contenido + Enviando Archivo a Planixa Principal)` });
                                     const specRes = await fetch('https://api.openai.com/v1/chat/completions', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
@@ -337,9 +344,7 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                                         if (sData.usage) await logApiUsage(user._id.toString(), 'WhatsApp: Especialista Back', specModel, sData.usage);
                                         specResultText = sData.choices[0].message.content;
                                         
-                                        // Extraer MARKDOWN directamente del especialista para no perderlo
-                                        const mdMatch = specResultText.match(/```markdown\s*([\s\S]*?)\s*```/) || specResultText.match(/([\s\S]+)/);
-                                        if (mdMatch) finalJsonFromSpecialist = mdMatch[1]; // reutilizamos la variable para guardar el MD
+                                        finalJsonFromSpecialist = specResultText;
                                         
                                         // DEBUG DUMP
                                         const fs = require('fs');
@@ -369,6 +374,13 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                                     });
                                 }
                             }
+                        }
+
+                        if (finalJsonFromSpecialist) {
+                            messages.push({
+                                role: 'system',
+                                content: 'El especialista ha terminado y te ha devuelto el contenido en Markdown. PRESENTA ESTE CONTENIDO al usuario de forma amigable. IMPORTANTE: Para que el servidor genere el archivo Word, DEBES incluir [GENERATE_DOCX] al final de tu mensaje.'
+                            });
                         }
 
                         req.app.emit('system_log', { type: 'PLANIXA ASISTENTE', color: '#3b82f6', title: 'Auditando Trabajo', details: 'El Orquestador está revisando lo entregado.' });
@@ -403,7 +415,7 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                 reply = reply.replace(/\[?SOLICITAR_AL_PROMPT_PRINCIPAL\]?:?\s*/gi, '');
             }
             
-            const profileMatch = reply?.match(/\[UPDATE_PROFILE:\s*(\{.*?\})\s*\]/i);
+            const profileMatch = reply?.match(/\[UPDATE_PROFILE:\s*(\{[\s\S]*?\})\s*\]/i);
             if (profileMatch) {
                 try {
                     const profileUpdates = JSON.parse(profileMatch[1]);
@@ -415,16 +427,16 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                     if (Object.keys(cleanUpdates).length > 0) {
                         await getDb().collection('users').updateOne({ _id: user._id }, { $set: cleanUpdates });
                     }
-                    reply = reply.replace(/\[UPDATE_PROFILE:\s*\{.*?\}\s*\]/i, '').trim();
+                    reply = reply.replace(/\[UPDATE_PROFILE:\s*\{[\s\S]*?\}\s*\]/i, '').trim();
                 } catch(e) {
                     console.error("Error parsing UPDATE_PROFILE", e);
                 }
             }
 
-            const memMatch = reply.match(/\[MEMORIA:\s*(.+?)\]/i);
+            const memMatch = reply.match(/\[MEMORIA:\s*([\s\S]+?)\]/i);
             if (memMatch) {
                 const newPref = memMatch[1].trim();
-                reply = reply.replace(/\[MEMORIA:\s*.+?\]/i, '').trim();
+                reply = reply.replace(/\[MEMORIA:\s*[\s\S]+?\]/i, '').trim();
                 const currentPrefs = user.preferences ? user.preferences + '\n- ' + newPref : '- ' + newPref;
                 await getDb().collection('users').updateOne({ _id: user._id }, { $set: { preferences: currentPrefs } });
             }
@@ -471,61 +483,33 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                         reply = reply.replace(/\[GENERATE_DOCX\]/g, '').replace(/\[GENERATE_WORD\]/g, '');
                     }
 
-            // --- 2. ENTREGA DE WORDS POR WHATSAPP ---
-            if ((reply.includes('[GENERATE_WORD]') || reply.includes('[GENERATE_DOCX]')) && finalJsonFromSpecialist) {
+            // --- 2. ENTREGA DE WORDS POR WHATSAPP (Google Docs API) ---
+            const hasGenTag = reply.includes('[GENERATE_WORD]') || reply.includes('[GENERATE_DOCX]');
+            if (hasGenTag && finalJsonFromSpecialist) {
                 try {
-                    let markdownData = finalJsonFromSpecialist;
-                    
-                    // Limpiar etiquetas de la IA
-                    markdownData = markdownData.replace(/\[GENERATE_DOCX\]/g, '').replace(/\[GENERATE_WORD\]/g, '').trim();
+                    let markdownData = finalJsonFromSpecialist
+                        .replace(/\[GENERATE_DOCX\]/g, '')
+                        .replace(/\[GENERATE_WORD\]/g, '')
+                        .trim();
+
+                    if (!markdownData) {
+                        markdownData = reply.replace(/\[GENERATE_DOCX\]/g, '').replace(/\[GENERATE_WORD\]/g, '').trim();
+                    }
+
+                    req.app.emit('system_log', { type: 'SISTEMA NODE.JS', color: '#10b981', title: 'Generando Documento', details: 'Google Docs API: creando documento Word profesional' });
+
+                    const htmlContent = marked.parse(markdownData);
+                    const styledHtml = buildProfessionalHtml(htmlContent);
+                    const docBuffer = await createDocxFromHtml(styledHtml, `Planifica-${from}-${Date.now()}`);
 
                     const outDir = path.join(PROJECT_ROOT, 'public', 'downloads');
                     if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-
-                    req.app.emit('system_log', { type: 'SISTEMA NODE.JS', color: '#10b981', title: 'Generando Documento Final', details: 'El servidor está convirtiendo el Markdown a un archivo Word desde cero.' });
-
                     const outFilename = `Documento-${from}-${Date.now()}.docx`;
                     const outPath = path.join(outDir, outFilename);
+                    fs.writeFileSync(outPath, docBuffer);
+
                     const outUrl = `https://planixa.onrender.com/public/downloads/${outFilename}`;
-
-                    const HTMLtoDOCX = require('html-to-docx');
-                    const { marked } = require('marked');
-
-                    const htmlContent = marked.parse(markdownData);
-                    const styledHtml = `
-                    <!DOCTYPE html>
-                    <html lang="es">
-                    <head>
-                        <meta charset="UTF-8">
-                        <style>
-                            body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #000000; }
-                            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                            th, td { border: 1px solid #000000; padding: 8px; text-align: left; vertical-align: top; }
-                            th { background-color: #f2f2f2; font-weight: bold; }
-                            h1 { color: #1a365d; font-size: 20pt; text-align: center; border-bottom: 2px solid #1a365d; padding-bottom: 10px; }
-                            h2 { color: #2b6cb0; font-size: 16pt; margin-top: 20px; }
-                            h3 { color: #2d3748; font-size: 14pt; }
-                            p { margin-bottom: 10px; line-height: 1.5; }
-                            ul, ol { margin-bottom: 10px; padding-left: 20px; }
-                        </style>
-                    </head>
-                    <body>
-                        ${htmlContent}
-                    </body>
-                    </html>
-                    `;
-
-                    const fileBuffer = await HTMLtoDOCX(styledHtml, null, {
-                        table: { row: { cantSplit: true } },
-                        footer: true,
-                        pageNumber: true
-                    });
-
-                    const fs2 = require('fs');
-                    fs2.writeFileSync(outPath, fileBuffer);
-
-                    await sendWhatsAppMessage(from, '¡Aquí tienes tu documento Word, profe! 📄✨', req.app);
-                    await sendWhatsAppDocument(from, outUrl, outFilename);
+                    await sendWhatsAppMessage(from, `¡Aquí tienes tu documento en Word, profe! 📄✨\n\n🔗 *Descárgalo aquí:* ${outUrl}`, req.app);
 
                     if (activeConv) {
                         await getDb().collection('conversations').updateOne(
@@ -535,23 +519,10 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                     }
 
                 } catch(e) {
-                    console.error('[WORD GEN] Error HTMLtoDOCX:', e.message, e.stack);
-                    require('../utils/debug_logger')('Crash HTMLtoDOCX', e, finalJsonFromSpecialist || '', 'HTML');
+                    console.error('[DOCX GEN] Error con Google Docs API:', e.message, e.stack);
+                    require('../utils/debug_logger')('Crash GoogleDocAPI', e, finalJsonFromSpecialist || '', 'Markdown');
                     await sendWhatsAppMessage(from, 'Ocurrió un error generando el documento. Por favor intenta de nuevo enviando tu solicitud.');
                 }
-            }
-
-            else if (reply.includes('[GENERATE_PDF]')) {
-                // Generar PDF legacy (Planificaciones regulares)
-                const pdfDir = path.join(PROJECT_ROOT, 'public', 'downloads');
-                if (!fs.existsSync(pdfDir)) fs.mkdirSync(pdfDir, { recursive: true });
-                const pdfFilename = `planificacion-${from}-${Date.now()}.pdf`;
-                const pdfPath = path.join(pdfDir, pdfFilename);
-                const pdfUrl = `https://planixa.onrender.com/public/downloads/${pdfFilename}`;
-                
-                await createPdfFromConv(activeConv, user, pdfPath);
-                await sendWhatsAppMessage(from, "Aquí tienes tu planificación en formato PDF, profe 📄✨");
-                await sendWhatsAppDocument(from, pdfUrl, pdfFilename);
             } else {
                 let waReply = reply.replace(/\*\*/g, '*');
                 waReply = waReply.replace(/^###\s+/gm, '*');
@@ -641,75 +612,6 @@ async function sendWhatsAppDocument(to, link, filename) {
             })
         });
     }
-}
-
-function createPdfFromConv(conv, user, outputPath) {
-    return new Promise((resolve, reject) => {
-        const doc = new PDFDocument({ margin: 50, size: 'LETTER' });
-        const stream = fs.createWriteStream(outputPath);
-        doc.pipe(stream);
-
-        const leftMargin = 50;
-        const pageWidth = 612;
-        const centerX = pageWidth / 2;
-
-        try {
-            if (fs.existsSync(path.join(PROJECT_ROOT, 'assets', 'minerd-logo.png'))) {
-                doc.image(path.join(PROJECT_ROOT, 'assets', 'minerd-logo.png'), centerX - 30, 20, { width: 60 });
-            }
-        } catch (e) {}
-
-        doc.fontSize(16).font('Helvetica-Bold').text('Ministerio de Educación de República Dominicana', centerX, 90, { align: 'center' });
-        doc.fontSize(12).font('Helvetica').text('Planificación Docente', centerX, 115, { align: 'center' });
-        doc.moveDown();
-
-        const dateStr = new Date().toLocaleDateString('es-DO', { year: 'numeric', month: 'long', day: 'numeric' });
-        doc.fontSize(9).fillColor('#666').text(`Generado el ${dateStr}`, { align: 'right' });
-        doc.fillColor('#000');
-
-        doc.moveDown();
-        doc.moveTo(leftMargin, doc.y).lineTo(pageWidth - leftMargin, doc.y).stroke('#ccc');
-        doc.moveDown();
-
-        const titleText = 'Planificación Docente';
-        doc.fontSize(14).font('Helvetica-Bold').text(titleText, leftMargin, doc.y, { underline: true });
-        doc.moveDown();
-
-        if (user && user.name) {
-            doc.fontSize(10).font('Helvetica').text(`Docente: ${user.name}     Celular: ${user.phone}`);
-            doc.moveDown(0.5);
-        }
-
-        doc.moveTo(leftMargin, doc.y).lineTo(pageWidth - leftMargin, doc.y).stroke('#ccc');
-        doc.moveDown();
-
-        const messages = conv.messages || [];
-        const planMessages = messages.filter(m => m.role === 'assistant' && m.content.length > 150 && !m.content.includes('[GENERATE_PDF]') && !m.content.includes('[GENERATE_WORD]'));
-        const lastPlanMsg = planMessages.length > 0 ? planMessages[planMessages.length - 1].content : 'No se encontró la planificación detallada en esta conversación.';
-
-        let content = String(lastPlanMsg).replace(/\[GENERATE_PDF\]/g, '');
-        content = content.replace(/\*\*/g, ''); // Remover negritas de markdown
-        
-        doc.fontSize(10).font('Helvetica').fillColor('#333');
-        const lines = content.split('\n');
-        for (const line of lines) {
-            if (doc.y > 720) doc.addPage();
-            if (line.trim().startsWith('-') || line.trim().startsWith('*')) {
-                doc.text(`• ${line.replace(/^[-*]/, '').trim()}`, leftMargin + 10, doc.y);
-            } else if (line.trim().startsWith('#')) {
-                doc.moveDown(0.5);
-                doc.font('Helvetica-Bold').fillColor('#111').text(line.replace(/^#+/, '').trim(), leftMargin, doc.y);
-                doc.font('Helvetica').fillColor('#333');
-            } else {
-                doc.text(line, leftMargin, doc.y);
-            }
-        }
-        doc.moveDown();
-
-        doc.end();
-        stream.on('finish', resolve);
-        stream.on('error', reject);
-    });
 }
 
 // ==========================================

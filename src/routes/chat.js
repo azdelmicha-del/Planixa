@@ -3,10 +3,27 @@ const { getDb } = require('../db');
 const { logApiUsage } = require('../finance');
 const fs = require('fs');
 const path = require('path');
-const PizZip = require('pizzip');
-const Docxtemplater = require('docxtemplater');
 const mongoose = require('mongoose');
 const { callSupervisor } = require('../utils/supervisor');
+const { createDocxFromHtml } = require('../utils/google_docs');
+const { buildProfessionalHtml } = require('../utils/docx_styles');
+
+async function generateDocx(markdown, userId) {
+    const { marked } = require('marked');
+    const outDir = path.join(__dirname, '../..', 'public', 'downloads');
+    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+    const outFilename = `Documento-${userId}-${Date.now()}.docx`;
+    const outPath = path.join(outDir, outFilename);
+    const outUrl = `/public/downloads/${outFilename}`;
+
+    const htmlContent = marked.parse(markdown);
+    const professionalHtml = buildProfessionalHtml(htmlContent);
+
+    const buffer = await createDocxFromHtml(professionalHtml, outFilename.replace('.docx', ''));
+    fs.writeFileSync(outPath, buffer);
+    return { url: outUrl, path: outPath };
+}
 
 module.exports = function (app) {
     app.post('/chat', authenticateToken, async (req, res) => {
@@ -52,15 +69,18 @@ module.exports = function (app) {
 
         let MINERD_SYSTEM_PROMPT = `Eres "Planixa", asistente de planificación docente del MINERD. Responde en español dominicano.`;
         
+        let defaultPrompt = null;
+        let selectedPrompt = null;
+        let hasFormat = false;
+
         try {
             // Fetch prompts
             const prompts = await getDb().collection('prompts').find({}).toArray();
             const formats = await getDb().collection('doc_formats').find({}).toArray();
             
         // Buscar explícitamente "Planixa Principal" como el por defecto (soporta guión bajo y espacios)
-        let defaultPrompt = prompts.find(p => p.name && p.name.replace(/_/g, ' ').trim().toLowerCase() === 'planixa principal') || (prompts.length > 0 ? prompts[0] : null);
-        let selectedPrompt = defaultPrompt;
-        let hasFormat = false;
+        defaultPrompt = prompts.find(p => p.name && p.name.replace(/_/g, ' ').trim().toLowerCase() === 'planixa principal') || (prompts.length > 0 ? prompts[0] : null);
+        selectedPrompt = defaultPrompt;
 
         let routerPromise = null;
         if (prompts.length > 1) {
@@ -108,7 +128,37 @@ module.exports = function (app) {
         }
 
         if (selectedPrompt) {
-            MINERD_SYSTEM_PROMPT = selectedPrompt.content;
+            let content = selectedPrompt.content;
+
+            // Limpiar instrucciones obsoletas de plantillas .docx y validación de plantillas
+            content = content
+                // Eliminar secciones enteras de "PLANTILLAS QUE PUEDES USAR" hasta el final o hasta otro encabezado
+                .replace(/PLANTILLAS QUE PUEDES USAR[\s\S]*?(?=\n---|\n[A-Z][A-Z]|\n$|$)/gi, '')
+                // Eliminar referencias a ESTADO/PLANTILLA_INCORRECTA y lógica de validación
+                .replace(/"ESTADO"\s*:.*?PLANTILLA_INCORRECTA.*?(?=\n|\})/gi, '')
+                // Eliminar frases de selección/validación de plantillas
+                .replace(/seleccionar la plantilla correcta[^.]*\./gi, '')
+                .replace(/seleccionar la plantilla correspondiente[^.]*\./gi, '')
+                .replace(/validar.*?plantilla[^.]*\./gi, '')
+                .replace(/verificar.*?plantilla[^.]*\./gi, '')
+                // Eliminar listas de nombres de plantillas .docx
+                .replace(/Plantilla_\w+\.docx/g, '')
+                .replace(/Plantilla_\w+/g, '')
+                // Eliminar referencias a rellenar plantillas
+                .replace(/rellenar la plantilla correspondiente[^.]*\./gi, 'generar el contenido estructurado.')
+                .replace(/rellenar la plantilla[^.]*\./gi, 'generar el contenido.')
+                // Reemplazar "documento Word .docx" con "contenido Markdown"
+                .replace(/documento Word \.docx/g, 'contenido en formato Markdown')
+                .replace(/documento Word/g, 'contenido Markdown')
+                // Reemplazar instrucciones de devolver .docx
+                .replace(/devolver a PLANIXA_principal un documento[^.]*\./gi, 'generar el contenido y devolverlo a PLANIXA_principal.')
+                // Eliminar la instrucción de plantilla incorrecta
+                .replace(/\{[\s]*"ESTADO"[\s]*:[\s]*"PLANTILLA_INCORRECTA"[\s]*\}/gi, '')
+                .replace(/ESTADO.*?PLANTILLA_INCORRECTA.*?\n/gi, '')
+                // Eliminar cualquier JSON de error de plantilla
+                .replace(/\{[^}]*"ESTADO"[^}]*"PLANTILLA_INCORRECTA"[^}]*\}/gi, '');
+
+            MINERD_SYSTEM_PROMPT = content;
         }
 
         // Inject Profile
@@ -136,34 +186,38 @@ module.exports = function (app) {
             }
         }
 
-        if (!activeFormatId && activeConv && activeConv.pendingFormatId) {
-            activeFormatId = activeConv.pendingFormatId;
+        if (!activeFormatId && req.pendingFormatId) {
+            activeFormatId = req.pendingFormatId;
         }
 
         if (activeFormatId) {
             const matchedFormat = formats.find(f => f._id.toString() === activeFormatId.toString());
             if (matchedFormat) {
                 hasFormat = true;
-                let tmplIns = `\n\nREGLA ESTRICTA DE FORMATO VISUAL (PLANTILLA WORD):\nEl administrador ha asignado una plantilla Word para este documento.`;
-                if (matchedFormat.instructions) tmplIns += `\nINSTRUCCIONES EXTRA DEL ADMIN: ${matchedFormat.instructions}`;
+                let tmplIns = `\n\nINSTRUCCIONES DE GENERACIÓN DE DOCUMENTO:\nEl profesor ha solicitado un documento.`;
                 
-                tmplIns += `\n\nREGLA DE APROBACIÓN (MUY IMPORTANTE):
-1. NO entregues una muestra de la planificación ni el texto completo en el chat. Mantén tus respuestas conversacionales y breves.
-2. Si faltan datos para completar la plantilla, hazle al profesor las preguntas necesarias para obtenerlos.
-3. Una vez tengas todos los datos y la planificación esté mentalmente lista, AL FINAL de tu mensaje pregúntale: "¿Tengo todos los datos listos, deseas que te genere tu documento en Word ahora?". 
-4. NO USES la etiqueta [GENERATE_WORD] en este momento.
-5. SÓLO usa [GENERATE_WORD] en tu SIGUIENTE mensaje si el profesor te responde que SÍ lo quiere en documento.
+                tmplIns += `\n\nREGLAS DE GENERACIÓN (MUY IMPORTANTE):
+1. NO entregues la planificación completa en texto plano en el chat. Mantén respuestas conversacionales y breves.
+2. Si faltan datos, haz preguntas para obtenerlos.
+3. Una vez tengas todos los datos listos, pregunta: "¿Deseas que genere tu documento en Word ahora?".
+4. SÓLO cuando el profesor confirme, responde con tu planificación COMPLETA en formato Markdown bien estructurado.
+5. La planificación debe incluir: encabezados (##), tablas si aplica, listas, negritas, etc.
+6. Al final de tu respuesta agrega la etiqueta: [GENERATE_DOCX]
 
-CUANDO EL PROFESOR DE LA APROBACIÓN:
-Debes responder EXACTAMENTE con este formato, SIN agregar toda la planificación en texto plano:
-[GENERATE_WORD]
-\`\`\`json
-{
-  "ejemplo_llave": "Valor rellenado por ti"
-}
-\`\`\`
-REGLA CRÍTICA: La plantilla tiene EXACTAMENTE estas etiquetas de texto: [${matchedFormat.tags ? matchedFormat.tags.join(', ') : 'no_detectadas'}].
-TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si omites una llave o inventas una que no está en la lista, el documento saldrá en blanco.`;
+EJEMPLO DE FORMATO:
+[GENERATE_DOCX]
+## Planificación Diaria
+**Docente:** [Nombre]
+**Grado:** [Grado]
+
+| Inicio | Desarrollo | Cierre |
+|--------|------------|--------|
+| ... | ... | ... |
+
+- Punto importante 1
+- Punto importante 2
+
+REGLA: El documento se genera automáticamente desde tu Markdown. Mientras más estructurado, mejor se verá el Word.`;
                 MINERD_SYSTEM_PROMPT += tmplIns;
             }
         }
@@ -200,25 +254,22 @@ TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si om
         ];
 
         const openaiKey = process.env.OPENAI_API_KEY;
-        const googleKey = process.env.GOOGLE_AI_KEY;
 
         async function tryOpenAI() {
             let reply = null;
             if (!openaiKey || openaiKey.includes('your_')) return null;
 
-            // Determinar si es trabajo de especialista
             const isSpecialistWork = selectedPrompt && defaultPrompt && selectedPrompt._id.toString() !== defaultPrompt._id.toString();
-            // Determinar si hay formato activo
-            const pendingFmtId = req.session.pendingFormatId || req.body.pendingFormatId;
             const isDocConfirmation = /^(s[íi]|si|ok|dale|listo|genéralo|hazlo|adelante|perfecto|claro|mándamelo|envíamelo|si por favor|ya|bueno|sí quiero|quiero|generar)/i.test(message.trim());
-            const shouldWork = isSpecialistWork && (hasFormat || pendingFmtId || isDocConfirmation || message.length > 50);
+            const shouldWork = isSpecialistWork && (hasFormat || isDocConfirmation || message.length > 50);
 
             try {
                 if (shouldWork) {
-                    // --- FLUJO MULTI-AGENTE (Web) ---
+                    // --- NUEVO FLUJO: router → especialista → docx → supervisor → principal ---
                     
                     const specModel = selectedPrompt.model || 'gpt-4o-mini';
-                    // 1. Especialista
+                    
+                    // 1. Especialista genera contenido en Markdown
                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: 'Delegando al Back-Office', details: `Procesando en web con ${specModel}...` });
                     const specRes = await fetch('https://api.openai.com/v1/chat/completions', {
                         method: 'POST',
@@ -232,37 +283,51 @@ TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si om
                         if (d.usage) await logApiUsage(userId, 'Web: Especialista', specModel, d.usage);
                         specReply = d?.choices?.[0]?.message?.content?.trim() || '';
                     }
+                    
+                    if (!specReply) return null;
 
-                    // Generación Forzada
-                    const shouldForceGen = hasFormat && pendingFmtId && !specReply.includes('[GENERATE_WORD]');
-                    if (shouldForceGen) {
-                        const fmtDoc2 = await getDb().collection('doc_formats').findOne({ _id: new mongoose.Types.ObjectId(pendingFmtId) });
-                        if (fmtDoc2) {
-                            const convoContext = history.map(m => (m.role === 'user' ? 'Profesor' : 'Asistente') + ': ' + m.content).join('\n') + '\nProfesor: ' + message;
-                            const forcedPrompt = `Eres un experto generador de planificaciones.\nTAREA: Genera la planificación completa en formato Markdown.\n\nREGLA CRÍTICA: Tu respuesta debe estar estructurada usando tablas (|---|), listas y negritas.\nNUNCA devuelvas JSON. Tu respuesta debe ser la planificación completa en Markdown.\n\nCONVERSACIÓN:\n${convoContext}\nResponde ÚNICAMENTE con el bloque [GENERATE_WORD] seguido del contenido en Markdown \`\`\`markdown ... \`\`\`.`;
-                            
-                            const fr2 = await fetch('https://api.openai.com/v1/chat/completions', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
-                                body: JSON.stringify({ model: 'gpt-4o', max_tokens: 4000, temperature: 0.3, messages: [{ role: 'user', content: forcedPrompt }] })
-                            });
-                            if (fr2.ok) {
-                                const fd2 = await fr2.json();
-                                if (fd2.usage) await logApiUsage(userId, 'Web: Gen Forzada', 'gpt-4o', fd2.usage);
-                                const forcedReply = fd2?.choices?.[0]?.message?.content?.trim();
-                                if (forcedReply && forcedReply.includes('[GENERATE_WORD]')) specReply = forcedReply;
+                    // 2. Generar DOCX profesional (obligatorio: Google Docs API)
+                    let docxUrl = null;
+                    const shouldGenDocx = specReply.includes('[GENERATE_DOCX]') || specReply.includes('[GENERATE_WORD]') || specReply.length > 500;
+                    
+                    if (shouldGenDocx) {
+                        let markdownData = specReply
+                            .replace(/\[GENERATE_DOCX\]/g, '')
+                            .replace(/\[GENERATE_WORD\]/g, '')
+                            .replace(/\[GENERATE_PDF\]/g, '')
+                            .trim();
+                        
+                        if (markdownData.length > 50) {
+                            try {
+                                const result = await generateDocx(markdownData, userId);
+                                docxUrl = result.url;
+                            } catch (docxErr) {
+                                console.error("Error generando DOCX profesional:", docxErr);
+                                reply = '⚠️ No se pudo generar el documento profesional. Verifica que Google Cloud Drive tenga espacio disponible.';
+                                return reply;
                             }
                         }
                     }
 
-                    // 2. Supervisor IA
-                    req.app.emit('system_log', { type: 'PLANIXA ASISTENTE', color: '#10b981', title: 'Supervisando Generación', details: 'Supervisor IA verificando el documento...' });
-                    let supervisedReply = (await callSupervisor(userId, systemWithRefs, message, specReply)).text;
+                    // Limpiar etiquetas del contenido para supervisor/principal
+                    const cleanContent = specReply
+                        .replace(/\[GENERATE_DOCX\]/g, '')
+                        .replace(/\[GENERATE_WORD\]/g, '')
+                        .replace(/\[GENERATE_PDF\]/g, '')
+                        .trim();
 
-                    // 3. Planixa Principal (Entrega Web)
+                    // 3. Supervisor IA
+                    req.app.emit('system_log', { type: 'PLANIXA ASISTENTE', color: '#10b981', title: 'Supervisando Generación', details: 'Supervisor IA verificando el contenido...' });
+                    let supervisedReply = (await callSupervisor(userId, systemWithRefs, message, cleanContent)).text;
+
+                    // 4. Planixa Principal (Entrega Web con link de descarga)
                     const prinModel = defaultPrompt.model || 'gpt-4o-mini';
-                    const principalSystemPrompt = defaultPrompt.content + `\n\nERES LA SECRETARIA. Un Especialista generó este trabajo:\n---\n${supervisedReply}\n---\nEntrégaselo al profesor amable y profesionalmente en la interfaz web. \nREGLA DE ORO: DEBES incluir EXACTAMENTE el mismo bloque [GENERATE_WORD] o [GENERATE_PDF] con su estructura intacta al final de tu mensaje.`;
-
+                    let principalSystemPrompt = defaultPrompt.content + `\n\nERES LA SECRETARIA. Un Especialista generó este trabajo:\n---\n${supervisedReply}\n---\nEntrégaselo al profesor amable y profesionalmente en la interfaz web.`;
+                    
+                    if (docxUrl) {
+                        principalSystemPrompt += `\n\nIMPORTANTE: El documento Word ya fue generado automáticamente. Incluye este enlace de descarga visible al final de tu mensaje:\n<a href="${docxUrl}" target="_blank" style="display:inline-block; padding:10px 15px; background:var(--primary); color:white; border-radius:5px; text-decoration:none; font-weight:bold;">📥 Descargar Documento Word</a>`;
+                    }
+                    
                     const prinRes = await fetch('https://api.openai.com/v1/chat/completions', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openaiKey}` },
@@ -273,8 +338,14 @@ TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si om
                         const d = await prinRes.json();
                         if (d.usage) await logApiUsage(userId, 'Web: Principal Delivery', prinModel, d.usage);
                         reply = d?.choices?.[0]?.message?.content?.trim() || supervisedReply;
+                        if (docxUrl && !reply.includes(docxUrl)) {
+                            reply += `\n\n<a href="${docxUrl}" target="_blank" style="display:inline-block; padding:10px 15px; background:var(--primary); color:white; border-radius:5px; text-decoration:none; font-weight:bold;">📥 Descargar Documento Word</a>`;
+                        }
                     } else {
                         reply = supervisedReply;
+                        if (docxUrl) {
+                            reply += `\n\n<a href="${docxUrl}" target="_blank" style="display:inline-block; padding:10px 15px; background:var(--primary); color:white; border-radius:5px; text-decoration:none; font-weight:bold;">📥 Descargar Documento Word</a>`;
+                        }
                     }
 
                 } else {
@@ -300,18 +371,6 @@ TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si om
             return reply;
         }
 
-        async function tryGemini() {
-            if (!googleKey) return null;
-            const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${googleKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ systemInstruction: { parts: [{ text: systemWithRefs }] }, contents: [{ role: 'user', parts: [{ text: message }] }], generationConfig: { maxOutputTokens: 2000, temperature: 0.3 } })
-            });
-            if (!r.ok) return null;
-            const d = await r.json();
-            return d?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
-        }
-
         const user = userDoc;
         
         // --- LIMIT CHECK ---
@@ -331,12 +390,11 @@ TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si om
         }
 
         let text = await tryOpenAI();
-        if (!text) text = await tryGemini();
         
         if (text) {
             text = text.replace(/\[?SOLICITAR_AL_PROMPT_PRINCIPAL\]?:?\s*/gi, '');
 
-            const profileMatch = text.match(/\[UPDATE_PROFILE:\s*(\{.*?\})\s*\]/i);
+            const profileMatch = text.match(/\[UPDATE_PROFILE:\s*(\{[\s\S]*?\})\s*\]/i);
             if (profileMatch) {
                 try {
                     const profileUpdates = JSON.parse(profileMatch[1]);
@@ -348,77 +406,32 @@ TU JSON DEBE RETORNAR OBLIGATORIAMENTE ESTAS LLAVES (keys) y NINGUNA OTRA. Si om
                     if (Object.keys(cleanUpdates).length > 0) {
                         await getDb().collection('users').updateOne({ _id: userDoc._id }, { $set: cleanUpdates });
                     }
-                    text = text.replace(/\[UPDATE_PROFILE:\s*\{.*?\}\s*\]/i, '').trim();
+                    text = text.replace(/\[UPDATE_PROFILE:\s*\{[\s\S]*?\}\s*\]/i, '').trim();
                 } catch(e) {
                     console.error("Error parsing UPDATE_PROFILE", e);
                 }
             }
 
-            const memMatch = text.match(/\[MEMORIA:\s*(.+?)\]/i);
+            const memMatch = text.match(/\[MEMORIA:\s*([\s\S]+?)\]/i);
             if (memMatch) {
                 const newPref = memMatch[1].trim();
-                text = text.replace(/\[MEMORIA:\s*.+?\]/i, '').trim();
+                text = text.replace(/\[MEMORIA:\s*[\s\S]+?\]/i, '').trim();
                 const currentPrefs = userDoc.preferences ? userDoc.preferences + '\n- ' + newPref : '- ' + newPref;
                 await getDb().collection('users').updateOne({ _id: userDoc._id }, { $set: { preferences: currentPrefs } });
             }
 
-            if (text.includes('[GENERATE_WORD]') || text.includes('[GENERATE_DOCX]')) {
-                try {
-                    let markdownData = "";
-                    const mdMatch = text.match(/```markdown\s*([\s\S]*?)\s*```/) || text.match(/([\s\S]+)/);
-                    if (mdMatch) {
-                        markdownData = mdMatch[1];
+            // Generación de DOCX profesional (obligatorio: Google Docs API)
+            const hasGenTag = text.includes('[GENERATE_WORD]') || text.includes('[GENERATE_DOCX]');
+            if (hasGenTag) {
+                let markdownData = text.replace(/\[GENERATE_DOCX\]/g, '').replace(/\[GENERATE_WORD\]/g, '').trim();
+                if (markdownData.length > 50) {
+                    try {
+                        const result = await generateDocx(markdownData, user._id);
+                        text = `Aquí tienes tu documento profesional en Word, profe 📄✨:\n\n<a href="${result.url}" target="_blank" download="${path.basename(result.path)}" style="display:inline-block; margin-top:10px; padding:10px 15px; background:var(--primary); color:white; border-radius:5px; text-decoration:none; font-weight:bold;">📥 Descargar Documento Word</a>`;
+                    } catch(e) {
+                        console.error("Error generando DOCX profesional:", e);
+                        text = "⚠️ No se pudo generar el documento profesional. Verifica que Google Cloud Drive tenga espacio disponible y que el archivo google-credentials.json sea válido.";
                     }
-                    markdownData = markdownData.replace(/\[GENERATE_WORD\]/g, '').replace(/\[GENERATE_DOCX\]/g, '').trim();
-
-                    const outDir = path.join(__dirname, '../..', 'public', 'downloads');
-                    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-                    
-                    const outFilename = `Documento-${user._id}-${Date.now()}.docx`;
-                    const outPath = path.join(outDir, outFilename);
-                    const outUrl = `/public/downloads/${outFilename}`;
-                    
-                    const HTMLtoDOCX = require('html-to-docx');
-                    const { marked } = require('marked');
-
-                    const htmlContent = marked.parse(markdownData);
-                    const styledHtml = `
-                    <!DOCTYPE html>
-                    <html lang="es">
-                    <head>
-                        <meta charset="UTF-8">
-                        <style>
-                            body { font-family: 'Arial', sans-serif; font-size: 11pt; color: #000000; }
-                            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                            th, td { border: 1px solid #000000; padding: 8px; text-align: left; vertical-align: top; }
-                            th { background-color: #f2f2f2; font-weight: bold; }
-                            h1 { color: #1a365d; font-size: 20pt; text-align: center; border-bottom: 2px solid #1a365d; padding-bottom: 10px; }
-                            h2 { color: #2b6cb0; font-size: 16pt; margin-top: 20px; }
-                            h3 { color: #2d3748; font-size: 14pt; }
-                            p { margin-bottom: 10px; line-height: 1.5; }
-                            ul, ol { margin-bottom: 10px; padding-left: 20px; }
-                        </style>
-                    </head>
-                    <body>
-                        ${htmlContent}
-                    </body>
-                    </html>
-                    `;
-
-                    const fileBuffer = await HTMLtoDOCX(styledHtml, null, {
-                        table: { row: { cantSplit: true } },
-                        footer: true,
-                        pageNumber: true
-                    });
-
-                    const fs2 = require('fs');
-                    fs2.writeFileSync(outPath, fileBuffer);
-
-                    text = `Aquí tienes tu documento estructurado en Word, profe 📄✨:\n\n<a href="${outUrl}" target="_blank" download="${outFilename}" style="color:var(--primary); font-weight:bold; text-decoration:underline;">📥 Descargar Documento Word</a>`;
-
-                } catch(e) {
-                    console.error("Error generating HTMLtoDOCX on web: ", e);
-                    text = "Ocurrió un error rellenando el documento Word desde Markdown.";
                 }
             }
 

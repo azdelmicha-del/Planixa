@@ -4,3 +4,7 @@ $_-REPORTES EFFI/
 *.xlsx
 *.xls
 .env
+client_secret.json
+oauth-token.json
+google-credentials.json
+*.log
