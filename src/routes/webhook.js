@@ -275,6 +275,26 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                         messages.push(responseMessage);
                         
                         for (const toolCall of responseMessage.tool_calls) {
+                            if (toolCall.function.name === 'actualizar_perfil_docente') {
+                                const args = JSON.parse(toolCall.function.arguments);
+                                const profileUpdate = {};
+                                if (args.name) profileUpdate.name = args.name;
+                                if (args.grade) profileUpdate.grade = args.grade;
+                                if (args.area) profileUpdate.area = args.area;
+                                if (args.school) profileUpdate.school = args.school;
+                                if (Object.keys(profileUpdate).length > 0) {
+                                    await getDb().collection('users').updateOne({ _id: user._id }, { $set: profileUpdate });
+                                    req.app.emit('system_log', { type: 'VIGILANTE', color: '#f59e0b', title: 'Perfil Actualizado', details: Object.keys(profileUpdate).join(', ') });
+                                }
+                                messages.push({
+                                    tool_call_id: toolCall.id,
+                                    role: "tool",
+                                    name: "actualizar_perfil_docente",
+                                    content: JSON.stringify({ ESTADO: "PERFIL_ACTUALIZADO", DATOS: profileUpdate })
+                                });
+                                continue;
+                            }
+                            
                             if (toolCall.function.name === 'consultar_especialista') {
                                 const args = JSON.parse(toolCall.function.arguments);
                                 const specId = args.especialista_id;
