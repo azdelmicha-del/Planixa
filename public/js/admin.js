@@ -12,8 +12,8 @@ window.initAdminPanel = function() {
   }
 
   function switchAdminTab(activeTabId, activeViewId, callback) {
-    const tabs = ['adminTabUsers', 'adminTabManage', 'adminTabBroadcast', 'adminTabOrchestrator', 'adminTabConfig', 'adminTabFormats', 'adminTabWorkflows', 'adminTabKnowledge', 'adminTabMonitor'];
-    const views = ['adminChatView', 'adminManageView', 'adminBroadcastView', 'adminOrchestratorView', 'adminPromptView', 'adminFormatView', 'adminWorkflowsView', 'adminKnowledgeView', 'adminMonitorView'];
+    const tabs = ['adminTabDashboard', 'adminTabUsers', 'adminTabManage', 'adminTabBroadcast', 'adminTabOrchestrator', 'adminTabConfig', 'adminTabFormats', 'adminTabWorkflows', 'adminTabKnowledge', 'adminTabMonitor'];
+    const views = ['adminDashView', 'adminChatView', 'adminManageView', 'adminBroadcastView', 'adminOrchestratorView', 'adminPromptView', 'adminFormatView', 'adminWorkflowsView', 'adminKnowledgeView', 'adminMonitorView'];
     
     tabs.forEach(tab => {
       const el = document.getElementById(tab);
@@ -50,6 +50,7 @@ window.initAdminPanel = function() {
     if(callback) callback();
   }
 
+  document.getElementById('adminTabDashboard')?.addEventListener('click', () => switchAdminTab('adminTabDashboard', 'adminDashView', updateAdminDashboard));
   document.getElementById('adminTabUsers')?.addEventListener('click', () => switchAdminTab('adminTabUsers', 'adminChatView'));
   document.getElementById('adminTabManage')?.addEventListener('click', () => switchAdminTab('adminTabManage', 'adminManageView', renderAdminManageTable));
   document.getElementById('adminTabBroadcast')?.addEventListener('click', () => switchAdminTab('adminTabBroadcast', 'adminBroadcastView'));

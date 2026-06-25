@@ -2,6 +2,8 @@
       
       <!-- Top Horizontal Menu -->
       <div id="adminTopMenu" style="display:flex; flex-wrap:wrap; justify-content:flex-start; align-items:center; gap:10px; padding:10px 15px; background:var(--bg); border:1px solid var(--border); border-radius:12px; font-size:14px;">
+        <span id="adminTabDashboard" style="cursor:pointer; color:var(--text-light); transition:color 0.2s;">📊 Dashboard</span>
+        <span style="color:var(--border); user-select:none;">|</span>
         <span id="adminTabUsers" style="cursor:pointer; color:var(--text-light); transition:color 0.2s;">👀 Monitoreo</span>
         <span style="color:var(--border); user-select:none;">|</span>
         <span id="adminTabBroadcast" style="cursor:pointer; color:var(--text-light); transition:color 0.2s;">📢 Difusión</span>
@@ -30,6 +32,41 @@
       <!-- Col 2: Historial del Cliente -->
       <div class="admin-col-2" style="flex:1; background:var(--bg); border:1px solid var(--border); border-radius:12px; display:flex; flex-direction:column; overflow:hidden;">
         <div style="padding:15px; border-bottom:1px solid var(--border); font-weight:bold;">💬 Panel Central <span id="adminActiveUserName" style="font-weight:normal; color:var(--text-light); margin-left:10px;"></span></div>
+        <div id="adminDashView" style="display:none; flex:1; padding:20px; overflow-y:auto; flex-direction:column; gap:20px;">
+          <div style="padding:15px; border-bottom:1px solid var(--border); font-weight:bold; color: #10b981; font-size:18px;">📊 Dashboard Global</div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
+            <div style="background:var(--card); padding:20px; border-radius:8px; border:1px solid var(--border); text-align:center;">
+              <h4 style="color:var(--text-light); font-size:13px; margin-bottom:5px;">Total Usuarios</h4>
+              <div id="dashTotalUsers" style="font-size:28px; font-weight:bold; color:var(--primary);">0</div>
+            </div>
+            <div style="background:var(--card); padding:20px; border-radius:8px; border:1px solid var(--border); text-align:center;">
+              <h4 style="color:var(--text-light); font-size:13px; margin-bottom:5px;">Usuarios Pro (Activos)</h4>
+              <div id="dashActiveUsers" style="font-size:28px; font-weight:bold; color:var(--accent);">0</div>
+            </div>
+            <div style="background:var(--card); padding:20px; border-radius:8px; border:1px solid var(--border); text-align:center;">
+              <h4 style="color:var(--text-light); font-size:13px; margin-bottom:5px;">Ingreso Mensual Estimado</h4>
+              <div id="dashMRR" style="font-size:28px; font-weight:bold; color:#f59e0b;">RD$ 0</div>
+            </div>
+            <div style="background:var(--card); padding:20px; border-radius:8px; border:1px solid var(--border); text-align:center;">
+              <h4 style="color:var(--text-light); font-size:13px; margin-bottom:5px;">Planificaciones Generadas</h4>
+              <div id="dashConversations" style="font-size:28px; font-weight:bold; color:#8b5cf6;">0</div>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
+            <div style="background:var(--card); padding:15px; border-radius:8px; border:1px solid var(--border); text-align:center;">
+              <h4 style="color:var(--text-light); font-size:12px; margin-bottom:5px;">Usuarios Gratis</h4>
+              <div id="dashFreeUsers" style="font-size:24px; font-weight:bold; color:var(--text);">0</div>
+            </div>
+            <div style="background:var(--card); padding:15px; border-radius:8px; border:1px solid var(--border); text-align:center;">
+              <h4 style="color:var(--text-light); font-size:12px; margin-bottom:5px;">Usuarios Exentos</h4>
+              <div id="dashExemptUsers" style="font-size:24px; font-weight:bold; color:var(--text);">0</div>
+            </div>
+            <div style="background:var(--card); padding:15px; border-radius:8px; border:1px solid var(--border); text-align:center;">
+              <h4 style="color:var(--text-light); font-size:12px; margin-bottom:5px;">Usuarios Admin</h4>
+              <div id="dashAdminUsers" style="font-size:24px; font-weight:bold; color:var(--text);">0</div>
+            </div>
+          </div>
+        </div>
         <div id="adminBroadcastView" style="display:none; flex:1; padding:20px; overflow-y:auto; flex-direction:column; gap:15px;">
           <h3>Difusión Masiva (Broadcast)</h3>
           <p style="font-size:13px; color:var(--text-light);">Envía un mensaje a los usuarios por WhatsApp o Email.</p>
