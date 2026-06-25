@@ -670,8 +670,10 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                     const outPath = path.join(outDir, outFilename);
                     fs.writeFileSync(outPath, docBuffer);
 
-                    const outUrl = `https://planixa.onrender.com/public/downloads/${outFilename}`;
-                    await sendWhatsAppMessage(from, `¡Aquí tienes tu documento en Word, profe! 📄✨\n\n🔗 *Descárgalo aquí:* ${outUrl}`, req.app);
+                    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+                    const outUrl = `${baseUrl}/public/downloads/${outFilename}`;
+                    await sendWhatsAppDocument(from, outUrl, outFilename);
+                    await sendWhatsAppMessage(from, `📄 *Documento enviado:* ${outFilename.replace('.docx','').replace(/Documento-/g, 'Planificación ')}`, req.app);
 
                     if (activeConv) {
                         await getDb().collection('conversations').updateOne(
