@@ -672,8 +672,7 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
 
                     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
                     const outUrl = `${baseUrl}/public/downloads/${outFilename}`;
-                    await sendWhatsAppDocument(from, outUrl, outFilename);
-                    await sendWhatsAppMessage(from, `📄 *Documento enviado:* ${outFilename.replace('.docx','').replace(/Documento-/g, 'Planificación ')}`, req.app);
+                    await sendWhatsAppMessage(from, `✅ *Tu planificación está lista, profe.* 📄✨\n\n🔗 *Descárgala aquí:* ${outUrl}\n\nEl enlace expirará cuando se elimine del servidor.`, req.app);
 
                     if (activeConv) {
                         await getDb().collection('conversations').updateOne(
