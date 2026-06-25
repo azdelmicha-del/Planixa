@@ -316,9 +316,12 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                                 const specPromptDoc = prompts.find(p => p.name === specId || p._id.toString() === specId);
                                 if (specPromptDoc) {
                                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: 'Delegando al Back-Office', details: specPromptDoc.name });
-                                    let dynamicInstructions = '\n\n### INSTRUCCIÓN OBLIGATORIA\nEntrega TODO el contenido de la planificación en **Markdown**. Usa tablas (|---|), títulos (#), negritas y listas para estructurarlo profesionalmente.\n';
+                                    let dynamicInstructions = '\n\n### FORMATO OBLIGATORIO: TABLAS\nTodo el contenido DEBE estructurarse en **tablas Markdown**. NO uses listas con viñetas para datos estructurados.\n';
+                                    dynamicInstructions += '- Usa | Col1 | Col2 | con filas de separación |---|---|\n';
+                                    dynamicInstructions += '- Datos clave-valor (Grado, Tema) van en tabla de 2 columnas\n';
+                                    dynamicInstructions += '- Actividades con evidencia/recursos van en tabla de 3-4 columnas\n';
                                     if (exactFormat) {
-                                        dynamicInstructions += `\n**ESTRUCTURA SUGERIDA (${exactFormat.type})**: Asegúrate de cubrir estos campos: ${exactFormat.tags ? exactFormat.tags.join(', ') : 'los propios del MINERD'}\n`;
+                                        dynamicInstructions += `\n**ESTRUCTURA SUGERIDA (${exactFormat.type})**: Cubre estos campos: ${exactFormat.tags ? exactFormat.tags.join(', ') : 'los propios del MINERD'}\n`;
                                     }
                                     dynamicInstructions += '\nLa ÚLTIMA línea de tu respuesta DEBE ser exactamente: [GENERATE_DOCX]';
 
