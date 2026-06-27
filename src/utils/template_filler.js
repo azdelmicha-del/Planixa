@@ -11,12 +11,12 @@
  */
 function toHtmlList(value) {
     if (Array.isArray(value) && value.length > 0) {
-        return '<ul>' + value.map(item => `<li>${String(item).trim()}</li>`).join('') + '</ul>';
+        return value.map(item => `- ${String(item).trim()}`).join('<br>');
     }
     if (typeof value === 'string' && value.includes('\n')) {
         const items = value.split('\n').map(l => l.replace(/^[-*•]\s*/, '').trim()).filter(l => l);
         if (items.length > 1) {
-            return '<ul>' + items.map(item => `<li>${item}</li>`).join('') + '</ul>';
+            return items.map(item => `- ${item}`).join('<br>');
         }
     }
     return String(value || '').trim();
@@ -82,7 +82,7 @@ function fillTemplate(htmlTemplate, data) {
         // Checkboxes no llenados → vacío
         if (key.startsWith('check_')) return '☐';
         // Listas no llenadas → vacío
-        if (key.endsWith('_html_list')) return '<ul><li>-</li></ul>';
+        if (key.endsWith('_html_list')) return '-';
         // Demás → guión
         return '-';
     });
