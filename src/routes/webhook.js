@@ -673,13 +673,28 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                     const finalFormatId = req.pendingFormatId || (activeConv && activeConv.pendingFormatId);
 
                     if (!finalFormatId) {
-                        throw new Error('No hay formato seleccionado. El orquestador debe elegir un formato con HTML template.');
+                        // Sin plantilla: entregar el contenido como texto por WhatsApp
+                        req.app.emit('system_log', { type: 'SISTEMA NODE.JS', color: '#f59e0b', title: 'Sin Plantilla', details: 'No hay formato seleccionado. Enviando contenido como texto.' });
+                        const fallbackText = (finalJsonFromSpecialist || reply)
+                            .replace(/\[GENERATE_DOCX\]/g, '').replace(/\[GENERATE_WORD\]/g, '')
+                            .replace(/```json[\s\S]*?```/gi, '') // quitar bloques JSON crudos
+                            .replace(/\*\*/g, '*').trim();
+                        await sendWhatsAppMessage(from, `⚠️ *Nota:* No hay una plantilla Word configurada para este tipo de planificación. Aquí tienes el contenido generado:\n\n${fallbackText.slice(0, 3800)}`, req.app);
+                        return;
                     }
 
                     const formatDoc = await getDb().collection('doc_formats').findOne({ _id: new mongoose.Types.ObjectId(finalFormatId) });
                     if (!formatDoc || !formatDoc.htmlTemplate || formatDoc.htmlTemplate.length < 50) {
-                        throw new Error(`El formato "${formatDoc?.type || 'desconocido'}" no tiene una Plantilla HTML configurada. Agrégala en el panel de Plantillas.`);
+                        // Plantilla sin HTML: mismo fallback de texto
+                        req.app.emit('system_log', { type: 'SISTEMA NODE.JS', color: '#f59e0b', title: 'Plantilla sin HTML', details: `El formato "${formatDoc?.type || 'desconocido'}" no tiene htmlTemplate. Enviando como texto.` });
+                        const fallbackText = (finalJsonFromSpecialist || reply)
+                            .replace(/\[GENERATE_DOCX\]/g, '').replace(/\[GENERATE_WORD\]/g, '')
+                            .replace(/```json[\s\S]*?```/gi, '')
+                            .replace(/\*\*/g, '*').trim();
+                        await sendWhatsAppMessage(from, `⚠️ *Nota:* La plantilla seleccionada no tiene un diseño HTML configurado. Aquí tienes el contenido generado:\n\n${fallbackText.slice(0, 3800)}`, req.app);
+                        return;
                     }
+
 
                     // Intentar extraer JSON estructurado del Especialista
                     const { json: specialistData } = extractSpecialistJson(finalJsonFromSpecialist);
