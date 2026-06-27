@@ -279,7 +279,7 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                         type: "function",
                         function: {
                             name: "consultar_especialista",
-                            description: "Delega la creación de una planificación o estructura a un Especialista técnico en el back-office. Usa esto siempre que el profesor pida crear un material.",
+                            description: "Delega la creación de una planificación al Especialista técnico. REGLA ESTRICTA: SÓLO puedes llamar a esta herramienta SI Y SÓLO SI acabas de preguntarle al usuario '¿Deseas que genere tu documento en Word ahora?' y el usuario respondió afirmativamente. Si aún no le has preguntado o no te ha respondido que sí, NO uses esta herramienta.",
                             parameters: {
                                 type: "object",
                                 properties: {
