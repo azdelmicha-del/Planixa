@@ -75,9 +75,11 @@ module.exports = function (app) {
         if (userDoc) {
             const parts = [];
             if (userDoc.name) parts.push('Nombre del docente: ' + userDoc.name);
+            if (userDoc.cedula) parts.push('Cédula: ' + userDoc.cedula);
+            if (userDoc.regional) parts.push('Regional / Distrito: ' + userDoc.regional + ' / ' + (userDoc.distrito || '-'));
+            if (userDoc.school) parts.push('Centro educativo: ' + userDoc.school + (userDoc.school_code ? ` (Código: ${userDoc.school_code})` : ''));
             if (userDoc.grade) parts.push('Grado que trabaja: ' + userDoc.grade);
             if (userDoc.area) parts.push('Área/Materia: ' + userDoc.area);
-            if (userDoc.school) parts.push('Centro educativo: ' + userDoc.school);
             if (userDoc.preferences) parts.push('\n💡 RECORDATORIOS/GUSTOS DEL DOCENTE:\n' + userDoc.preferences);
             
             if (parts.length > 0) profileBlock = '\n\n📋 DATOS DEL DOCENTE:\n' + parts.join('\n') + '\n\nUSA ESTOS DATOS para personalizar tus respuestas y planificaciones. No preguntes de nuevo por datos que ya tienes aquí.\n';
@@ -164,7 +166,7 @@ module.exports = function (app) {
 
         // Inject Profile
         MINERD_SYSTEM_PROMPT += profileBlock;
-        MINERD_SYSTEM_PROMPT += `\n\n=== REGLA: VIGILANTE RECOLECTOR (PERFIL) ===\nSi el profesor menciona su nombre, grado, área escolar o centro educativo en la conversación, DEBES incluir esta etiqueta oculta al final de tu respuesta: [UPDATE_PROFILE: {"name":"...", "grade":"...", "area":"...", "school":"..."}]. Si menciona un gusto o preferencia de cómo le gustan las cosas, usa [MEMORIA: ...].`;
+        MINERD_SYSTEM_PROMPT += `\n\n=== REGLA: VIGILANTE RECOLECTOR (PERFIL) ===\nSi el profesor menciona su nombre, cédula, regional, distrito, grado, área o escuela, DEBES incluir esta etiqueta oculta al final de tu respuesta: [UPDATE_PROFILE: {"name":"...", "cedula":"...", "regional":"...", "distrito":"...", "school":"...", "school_code":"...", "grade":"...", "area":"..."}]. Si menciona un gusto o preferencia de cómo le gustan las cosas, usa [MEMORIA: ...].`;
 
         let activeFormatId = null;
 
@@ -401,9 +403,13 @@ REGLA: El documento se genera automáticamente desde tu Markdown. Mientras más 
                     const profileUpdates = JSON.parse(profileMatch[1]);
                     const cleanUpdates = {};
                     if (profileUpdates.name) cleanUpdates.name = profileUpdates.name;
+                    if (profileUpdates.cedula) cleanUpdates.cedula = profileUpdates.cedula;
+                    if (profileUpdates.regional) cleanUpdates.regional = profileUpdates.regional;
+                    if (profileUpdates.distrito) cleanUpdates.distrito = profileUpdates.distrito;
                     if (profileUpdates.grade) cleanUpdates.grade = profileUpdates.grade;
                     if (profileUpdates.area) cleanUpdates.area = profileUpdates.area;
                     if (profileUpdates.school) cleanUpdates.school = profileUpdates.school;
+                    if (profileUpdates.school_code) cleanUpdates.school_code = profileUpdates.school_code;
                     if (Object.keys(cleanUpdates).length > 0) {
                         await getDb().collection('users').updateOne({ _id: userDoc._id }, { $set: cleanUpdates });
                     }

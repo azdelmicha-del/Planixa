@@ -17,10 +17,22 @@ const PROJECT_ROOT = path.resolve(__dirname, '../..');
  * Si el formato tiene una lista de variables ({{...}}), instruye al Especialista
  * a devolver un JSON estructurado. Si no, usa el flujo legacy de Markdown.
  */
-function buildSpecialistInstructions(exactFormat) {
+function buildSpecialistInstructions(exactFormat, user = null) {
     if (exactFormat && exactFormat.variables && exactFormat.variables.length > 0) {
         const varList = exactFormat.variables.join('", "');
-        return `\n\n=== INSTRUCCIÓN CRÍTICA: DEBES DEVOLVER UN JSON ESTRUCTURADO ===
+        const userInfo = user ? `
+=== DATOS DEL PERFIL DEL DOCENTE (USAR OBLIGATORIAMENTE SI LA PLANTILLA LOS PIDE) ===
+Nombre: ${user.name || '-'}
+Cédula: ${user.cedula || '-'}
+Regional: ${user.regional || '-'}
+Distrito: ${user.distrito || '-'}
+Centro Educativo: ${user.school || '-'}
+Código Centro: ${user.school_code || '-'}
+Grado: ${user.grade || '-'}
+Área: ${user.area || '-'}
+` : '';
+
+        return `\n\n=== INSTRUCCIÓN CRÍTICA: DEBES DEVOLVER UN JSON ESTRUCTURADO ===${userInfo}
 La plantilla seleccionada ("${exactFormat.type}") tiene campos específicos que DEBES rellenar.
 Tu respuesta DEBE ser ÚNICAMENTE un bloque JSON válido con esta estructura exacta:
 
@@ -249,7 +261,7 @@ module.exports = function (app) {
                 }).join('\n');
 
 MINERD_SYSTEM_PROMPT = defaultPrompt.content + 
-                                       `\n\n=== ESTADO DEL DOCENTE ===\nPerfil: ${user.name||'No especificado'}, Grado: ${user.grade||'No especificado'}, Área: ${user.area||'No especificada'}\n\n=== HERRAMIENTAS INTERNAS ===\nEspecialistas disponibles:\n${availableSpecialistsStr}\n\nPlantillas disponibles: ${availableFormats.join(', ')}\n\n=== REGLA DE DELEGACIÓN ===\n1. RECOLECTAR DATOS: Si no sabes grado, materia, tema o plantilla preferida, pregunta amablemente antes de avanzar.\n2. DELEGAR AL BACK-OFFICE (OBLIGATORIO): SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la función/herramienta "consultar_especialista" pasando el ID adecuado y el NOMBRE EXACTO de la plantilla. \n3. ¡ESTRICTAMENTE PROHIBIDO! NUNCA intentes escribir los datos del especialista como texto en tu mensaje. TU ÚNICA ACCIÓN es ejecutar la LLAMADA A LA FUNCIÓN (tool call) consultar_especialista.\n4. VIGILANTE RECOLECTOR (PERFIL): Si el profesor menciona su nombre, grado, área escolar o centro educativo, DEBES llamar a la herramienta "actualizar_perfil_docente". Si menciona un gusto o preferencia, usa la etiqueta de texto [MEMORIA: ...].\n5. ⚠️ ACCIÓN INMEDIATA: Si ya tienes TODOS los datos necesarios, DEBES ejecutar la herramienta "consultar_especialista" INMEDIATAMENTE EN ESTE MISMO TURNO. ESTÁ PROHIBIDO responder con texto diciendo "Un momento, estoy procesando..." o "Déjame consultar...". Si mandas texto, el servidor se detendrá y el usuario nunca recibirá el documento. Usa la herramienta directamente.\n6. 🚫 SI EL USUARIO TE DICE "dame el documento", "dame la planificación" o similar, NO DIGAS QUE YA ESTÁ LISTO. En lugar de eso, LLAMA A consultar_especialista INMEDIATAMENTE.`;
+                                       `\n\n=== ESTADO DEL DOCENTE ===\nPerfil: ${user.name||'No especificado'}, Cédula: ${user.cedula||'No especificada'}, Grado: ${user.grade||'No especificado'}, Área: ${user.area||'No especificada'}, Regional/Distrito: ${user.regional||'No'}/${user.distrito||'No'}, Escuela: ${user.school||'No especificada'} (Código: ${user.school_code||'No'})\n\n=== HERRAMIENTAS INTERNAS ===\nEspecialistas disponibles:\n${availableSpecialistsStr}\n\nPlantillas disponibles: ${availableFormats.join(', ')}\n\n=== REGLA DE DELEGACIÓN ===\n1. RECOLECTAR DATOS: Si no sabes el nombre del docente, su grado, materia o el tema, pregúntale amablemente. Si le faltan datos de perfil (cédula, escuela, regional, distrito), puedes pedirselos sutilmente.\n2. DELEGAR AL BACK-OFFICE (OBLIGATORIO): SÓLO cuando tengas claro qué tipo de estructura o documento quiere el maestro, DEBES delegar el trabajo usando la función/herramienta "consultar_especialista" pasando el ID adecuado y el NOMBRE EXACTO de la plantilla. \n3. ¡ESTRICTAMENTE PROHIBIDO! NUNCA intentes escribir los datos del especialista como texto en tu mensaje. TU ÚNICA ACCIÓN es ejecutar la LLAMADA A LA FUNCIÓN (tool call) consultar_especialista.\n4. VIGILANTE RECOLECTOR (PERFIL): Si el profesor menciona su nombre, cédula, escuela, regional, distrito, grado o área, DEBES llamar a la herramienta "actualizar_perfil_docente". Si menciona un gusto o preferencia, usa la etiqueta de texto [MEMORIA: ...].\n5. ⚠️ ACCIÓN INMEDIATA: Si ya tienes TODOS los datos necesarios, DEBES ejecutar la herramienta "consultar_especialista" INMEDIATAMENTE EN ESTE MISMO TURNO. ESTÁ PROHIBIDO responder con texto diciendo "Un momento, estoy procesando..." o "Déjame consultar...". Si mandas texto, el servidor se detendrá y el usuario nunca recibirá el documento. Usa la herramienta directamente.\n6. 🚫 SI EL USUARIO TE DICE "dame el documento", "dame la planificación" o similar, NO DIGAS QUE YA ESTÁ LISTO. En lugar de eso, LLAMA A consultar_especialista INMEDIATAMENTE.`;
 
                 // Removemos globalKnowledgeBlock del Orquestador para no distraerlo. Solo se lo enviamos al Especialista.
                 const systemWithRefs = MINERD_SYSTEM_PROMPT + refBlock;
@@ -285,9 +297,13 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                                 type: "object",
                                 properties: {
                                     name: { type: "string", description: "Nombre completo del docente" },
+                                    cedula: { type: "string", description: "Cédula de identidad (ej. 001-0000000-0)" },
                                     grade: { type: "string", description: "Grado o curso que imparte (ej. Segundo Grado)" },
                                     area: { type: "string", description: "Materia o área curricular (ej. Matemáticas, Lengua Española)" },
-                                    school: { type: "string", description: "Centro educativo o escuela" }
+                                    school: { type: "string", description: "Centro educativo o escuela" },
+                                    school_code: { type: "string", description: "Código del centro educativo" },
+                                    regional: { type: "string", description: "Número o nombre de la Regional (ej. 10)" },
+                                    distrito: { type: "string", description: "Número o nombre del Distrito Educativo (ej. 10-01)" }
                                 }
                             }
                         }
@@ -325,9 +341,13 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                                 const args = JSON.parse(toolCall.function.arguments);
                                 const profileUpdate = {};
                                 if (args.name) profileUpdate.name = args.name;
+                                if (args.cedula) profileUpdate.cedula = args.cedula;
                                 if (args.grade) profileUpdate.grade = args.grade;
                                 if (args.area) profileUpdate.area = args.area;
                                 if (args.school) profileUpdate.school = args.school;
+                                if (args.school_code) profileUpdate.school_code = args.school_code;
+                                if (args.regional) profileUpdate.regional = args.regional;
+                                if (args.distrito) profileUpdate.distrito = args.distrito;
                                 if (Object.keys(profileUpdate).length > 0) {
                                     await getDb().collection('users').updateOne({ _id: user._id }, { $set: profileUpdate });
                                     req.app.emit('system_log', { type: 'VIGILANTE', color: '#f59e0b', title: 'Perfil Actualizado', details: Object.keys(profileUpdate).join(', ') });
@@ -381,7 +401,7 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                                 const specPromptDoc = prompts.find(p => p.name === specId || p._id.toString() === specId);
                                 if (specPromptDoc) {
                                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: 'Delegando al Back-Office', details: specPromptDoc.name });
-                                    let dynamicInstructions = buildSpecialistInstructions(exactFormat);
+                                    let dynamicInstructions = buildSpecialistInstructions(exactFormat, user);
 
                                     const specModel = specPromptDoc.model || 'gpt-4o-mini';
                                     req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: `Flujo del Especialista (${specPromptDoc.name})`, details: `(Datos Recibidos + Accediendo a "Plantillas" + Datos de Plantilla "${plantillaNombre || 'X'}" Extraídos + Accediendo a "Conocimientos Planixa" + Conocimientos de Planixa Extraídos + Generando contenido + Enviando Archivo a Planixa Principal)` });
@@ -497,9 +517,13 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                                             const args = JSON.parse(toolCall.function.arguments);
                                             const profileUpdate = {};
                                             if (args.name) profileUpdate.name = args.name;
+                                            if (args.cedula) profileUpdate.cedula = args.cedula;
                                             if (args.grade) profileUpdate.grade = args.grade;
                                             if (args.area) profileUpdate.area = args.area;
                                             if (args.school) profileUpdate.school = args.school;
+                                            if (args.school_code) profileUpdate.school_code = args.school_code;
+                                            if (args.regional) profileUpdate.regional = args.regional;
+                                            if (args.distrito) profileUpdate.distrito = args.distrito;
                                             if (Object.keys(profileUpdate).length > 0) {
                                                 await getDb().collection('users').updateOne({ _id: user._id }, { $set: profileUpdate });
                                                 req.app.emit('system_log', { type: 'VIGILANTE', color: '#f59e0b', title: 'Perfil Actualizado', details: Object.keys(profileUpdate).join(', ') });
@@ -529,7 +553,7 @@ MINERD_SYSTEM_PROMPT = defaultPrompt.content +
                                             const specPromptDoc = prompts.find(p => p.name === specId || p._id.toString() === specId);
                                             if (specPromptDoc) {
                                                 req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: 'Delegando al Back-Office (Retry)', details: specPromptDoc.name });
-                                                let dynamicInstructions = buildSpecialistInstructions(exactFormat);
+                                                let dynamicInstructions = buildSpecialistInstructions(exactFormat, user);
                                                 const specModel = specPromptDoc.model || 'gpt-4o-mini';
                                                 req.app.emit('system_log', { type: 'ESPECIALISTA', color: '#f59e0b', title: `Flujo del Especialista (${specPromptDoc.name})`, details: `(Datos Recibidos + Accediendo a "Plantillas" + Datos de Plantilla "${plantillaNombre || 'X'}" Extraídos + Accediendo a "Conocimientos Planixa" + Conocimientos de Planixa Extraídos + Generando contenido + Enviando Archivo a Planixa Principal)` });
                                                 const specRes = await fetch('https://api.openai.com/v1/chat/completions', {
